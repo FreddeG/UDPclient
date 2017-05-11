@@ -1,14 +1,8 @@
 /*
     Simple udp client
 */
-#include<stdio.h> //printf
-#include<string.h> //memset
-#include<stdlib.h> //exit(0);
-#include<arpa/inet.h>
-#include<sys/socket.h>
-#include <unistd.h>
-#include <stdbool.h>
-#include <stdint.h>
+
+#include "list.h"
 
 #define SERVER "127.0.0.1" // use gethostbyname // getaddrinfo
 #define BUFLEN 512  //Max length of buffer
@@ -24,6 +18,7 @@
 #define WAITINGCLOSE 5
 #define CLOSED 6
 
+/*
 typedef struct {
 
     bool fin;
@@ -35,7 +30,7 @@ typedef struct {
     char data;
     uint64_t checkSum;
 } Package;
-
+*/
 
 typedef struct {
 
@@ -118,6 +113,7 @@ void printPackage(Package pack)
     printf("\n checksum: %u\n", pack.checkSum);
 
 }
+
 
 int main(void)
 {
