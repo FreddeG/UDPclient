@@ -115,6 +115,21 @@ void printPackage(Package pack)
 }
 
 
+uint64_t checksum (Package pack)
+{
+    unsigned char *ptr=(unsigned char *)&pack;
+    int sizestruct = sizeof(Package);
+    uint64_t chksm = 0;
+    int i;
+
+    for(i=0; i<sizestruct; i++)
+        chksm = chksm + ptr[i];
+
+
+    return chksm;
+}
+
+
 int main(void)
 {
 
@@ -123,7 +138,9 @@ int main(void)
     int sock, i, slen=sizeof(serverAddr);
     int currentState = 0;
    // char buf[BUFLEN];
+    char charFromFile;
     Package outputBuf, inputBuf;
+    FILE *fp = NULL;
 
     List list;
     list.head = NULL;
@@ -295,14 +312,40 @@ int main(void)
                 break;
 
             case CONNECTED:
-                printf("\n Type something to add to list");
+                //printf("\n Type something to add to list");
                 //printPackage(outputBuf);
-                scanf(" %c", &outputBuf.data);
+                if(fp == NULL)
+                {
+                    fp = fopen ("file.txt", "r");
+                }
+                else
+                {
+                    return 0; // solve loop somehow to exit when EOF is found
+                }
+                if(fp == NULL) // error
+                {
+                    die("fopen");
+                }
+                //scanf(" %c", &outputBuf.data);
+                while ((charFromFile = fgetc(fp)) != EOF)
+                {
+                    outputBuf.data = charFromFile;
+                    outputBuf.checkSum = 0;
+                    outputBuf.checkSum = checksum(outputBuf); // remember to set checksum to 0 before in normal cases
+                    addNodeLast(&list, outputBuf);
+
+                    // send
 
 
-                addNodeLast(&list, outputBuf);
+                    // check ack?
+                }
+
+
+
                 printf("\nNumber of nodes: %d", numberOfNodes(&list));
                 printList(&list);
+                getchar();
+                // WE ARE DONE !!!
                // currentState = INITCLOSE;
 
 
