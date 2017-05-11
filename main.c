@@ -125,6 +125,9 @@ int main(void)
    // char buf[BUFLEN];
     Package outputBuf, inputBuf;
 
+    List list;
+    list.head = NULL;
+
     fd_set activeFdSet, readFdSet;
     struct timeval timeout_t;
 
@@ -285,16 +288,22 @@ int main(void)
                 else
                 {
                     currentState = CONNECTED;
+                    printf("\n REACHED CONNECTED!");
 
                 }
 
                 break;
 
             case CONNECTED:
-                printf("\n REACHED CONNECTED!");
-                getchar();
-                currentState = INITCLOSE;
+                printf("\n Type something to add to list");
+                //printPackage(outputBuf);
+                scanf(" %c", &outputBuf.data);
 
+
+                addNodeLast(&list, outputBuf);
+                printf("\nNumber of nodes: %d", numberOfNodes(&list));
+                printList(&list);
+               // currentState = INITCLOSE;
 
 
                 break;

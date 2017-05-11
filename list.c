@@ -65,18 +65,20 @@ Node *createNode(const Package pack)
 
 void addNodeLast(List *list, Package dataInput)
 {
-    Node *current = list->head;
-    Node *previous = current;
-    while (current != NULL)
-    {
-        previous = current;
-        current = current->Next;
-    }
     if (list->head == NULL)
     {
         list->head = createNode(dataInput);
         return;
     }
+    Node *current = list->head;
+    Node *previous = current;
+
+    while (current != NULL)
+    {
+        previous = current;
+        current = current->Next;
+    }
+
     previous->Next = createNode(dataInput);
 
 }
@@ -145,6 +147,7 @@ void printList(List *mylist)
         do
         {
           //  printf("%d   ", iterator->data); fix printing
+            printPackage(iterator->data);
             iterator = iterator->Next;
         } while (iterator != NULL);
     }

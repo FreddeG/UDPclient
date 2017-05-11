@@ -68,14 +68,19 @@ typedef struct iter
 /* ALLA funktioner i interfacet måste returnera eller ta ett       */
 /* argument av typen List eller List*                              */
 /* *****************************************************************/
-List *listCreate(void);
-void listDestroy(List *myList);
-void insertElementLast(List *myList, Node *e);
-void insertElementAfter(List *myList, Node *at, Node *e);
-Node *nodeCreate(int value);
-void emptyPackage(Package *packToEmpty);
+List *listCreate(void); // does not compile?
+void removeList(List* myList);
+void removeFirst(List* myList);
+Node *createNode(const Package pack);
+void addNodeLast(List *list, Package dataInput);
 void addNodeFirst(List *list, Package dataInput);
+int numberOfNodes(List *list);
+int IsListEmpty(List *list);
+void printList(List *mylist);
 
+
+
+void printPackage(Package pack);
 
 
 
