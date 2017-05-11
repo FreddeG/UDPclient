@@ -95,8 +95,6 @@ uint8_t viewPackage(Package pack)
         printf("\n ERROR!");
         exit(1);
 
-
-
     }
 
     //checksum wrong return
@@ -299,11 +297,14 @@ int main(void)
             case CONNECTED:
                 printf("\n REACHED CONNECTED!");
                 getchar();
+                currentState = INITCLOSE;
 
 
 
                 break;
             case INITCLOSE:
+
+
 
                 break;
             case WAITINGCLOSE:
