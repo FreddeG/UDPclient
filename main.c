@@ -17,6 +17,7 @@
 #define INITCLOSE 4
 #define WAITINGCLOSE 5
 #define CLOSED 6
+#define WINDOWSIZE 3
 
 /*
 typedef struct {
@@ -61,7 +62,7 @@ void emptyPackage(Package *packToEmpty)
 uint64_t initSEQ(void)
 {
 
-return 1;
+    return 1;
 }
 
 uint16_t getTimeStamp(void)
@@ -137,10 +138,12 @@ int main(void)
     struct sockaddr_in serverAddr;
     int sock, i, slen=sizeof(serverAddr);
     int currentState = 0;
-   // char buf[BUFLEN];
+    // char buf[BUFLEN];
     char charFromFile;
     Package outputBuf, inputBuf;
     FILE *fp = NULL;
+    uint16_t freeWin = WINDOWSIZE;
+    bool endFlag = false;
 
     List list;
     list.head = NULL;
@@ -150,7 +153,7 @@ int main(void)
 
     //strcpy(buf.data, 'a');
     //printf("\n entered data %c \n" , outputBuf.data);
-   // char message[BUFLEN] = "test";
+    // char message[BUFLEN] = "test";
 
     if ( (sock=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
     {
@@ -162,7 +165,7 @@ int main(void)
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(PORT);
 
-   // struct sockaddr test;
+    // struct sockaddr test;
 // use gethostbyname to set sin_addr
 
     if (inet_aton(SERVER , &serverAddr.sin_addr) == 0)
@@ -306,50 +309,109 @@ int main(void)
                 {
                     currentState = CONNECTED;
                     printf("\n REACHED CONNECTED!");
-
+                    if(fp == NULL)
+                    {
+                        fp = fopen ("file.txt", "r");
+                    }
+                    else
+                    {
+                        return 0; // solve loop somehow to exit when EOF is found
+                    }
+                    if(fp == NULL) // error
+                    {
+                        die("fopen");
+                    }
                 }
 
                 break;
 
             case CONNECTED:
+
                 //printf("\n Type something to add to list");
                 //printPackage(outputBuf);
-                if(fp == NULL)
+                //scanf(" %c", &outputBuf.data);
+
+                //Send packages until window full. Check that we have not reached the last package.
+                if(freeWin != 0 && endFlag == false)
                 {
-                    fp = fopen ("file.txt", "r");
+                    charFromFile = fgetc(fp);
+                    if (charFromFile != EOF)
+                    {
+                        outputBuf.data = charFromFile;
+                        outputBuf.checkSum = 0;
+                        outputBuf.checkSum = checksum(outputBuf); // remember to set checksum to 0 before in normal cases
+                        addNodeLast(&list, outputBuf);
+                        if (sendto(sock, &outputBuf, sizeof(Package), 0, (struct sockaddr*) &serverAddr, slen) == -1)
+                        {
+                            die("sendto()");
+                        }
+                        printf("\n Output package");
+                        freeWin--;
+                    }
+                    else //We have reached the last package. Time to prepare shutdown.
+                    {
+                        endFlag = true;
+                    }
+
+                }
+                else if(endFlag == false) //We have sent all of teh packages in the window and are w8ing for ack:s.
+                {
+                    timeout_t.tv_sec = 5; // Time that we listen for acks b4 resending the window.
+                    timeout_t.tv_usec = 0;
+                    if (select(FD_SETSIZE, &readFdSet, NULL, NULL, &timeout_t) < 0) { // blocking, waits until one the FD is set to ready, will keep the ready ones in readFdSet
+                        perror("Select failed\n");
+                        exit(EXIT_FAILURE);
+                    }
+                    else if(FD_ISSET(sock, &readFdSet)) // if true we got a package so read it.
+                    {
+                        if ((recvfrom(sock, &inputBuf, sizeof(Package), 0, (struct sockaddr *) &serverAddr, &slen)) ==
+                            -1) {
+                            // perror(recvfrom());
+                            die("recvfrom()");
+                        }
+                        // loop trough list and remove all posts that have sec <= ack and for each removed set freeWin++
+                    }
+                    else
+                    {
+                        //FIXA DENNA
+                        Node *current = list.head;
+                        Node *previous = current;
+                        while (current != NULL)
+                        {
+                            previous = current;
+                            outputBuf = previous->data;
+                            current = current->Next;
+                            if (sendto(sock, &outputBuf, sizeof(Package), 0, (struct sockaddr*) &serverAddr, slen) == -1)
+                            {
+                                die("sendto()");
+                            }
+                        }
+
+                    }
                 }
                 else
                 {
-                    return 0; // solve loop somehow to exit when EOF is found
-                }
-                if(fp == NULL) // error
-                {
-                    die("fopen");
-                }
-                //scanf(" %c", &outputBuf.data);
-                while ((charFromFile = fgetc(fp)) != EOF)
-                {
-                    outputBuf.data = charFromFile;
-                    outputBuf.checkSum = 0;
-                    outputBuf.checkSum = checksum(outputBuf); // remember to set checksum to 0 before in normal cases
-                    addNodeLast(&list, outputBuf);
-
-                    // send
-
-
-                    // check ack?
+                    //All acks must have been recived
+                    currentState = INITCLOSE;
                 }
 
+                // send
 
 
-                printf("\nNumber of nodes: %d", numberOfNodes(&list));
-                printList(&list);
-                getchar();
-                // WE ARE DONE !!!
-               // currentState = INITCLOSE;
+                // check ack?
+
+
+
+
+            printf("\nNumber of nodes: %d", numberOfNodes(&list));
+            printList(&list);
+            getchar();
+            // WE ARE DONE !!!
+            // currentState = INITCLOSE;
 
 
                 break;
+
             case INITCLOSE:
 
 
@@ -360,12 +422,14 @@ int main(void)
                 break;
             case CLOSED:
 
-                break;
-
+            break;
         }
+
     }
+    return 0;
+}
 
-
+/*
     while(1)
     {
 
@@ -389,5 +453,5 @@ int main(void)
     }
 
     close(sock);
-    return 0;
-}
+
+}*/
