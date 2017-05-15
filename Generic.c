@@ -74,10 +74,10 @@ void printPackage(Package pack)
     printf("\n fin: %d", pack.fin);
     printf("\n reset: %d", pack.reset);
     printf("\n syn: %d", pack.syn);
-    printf("\n seq: %u", pack.seq);
-    printf("\n ack: %u", pack.ack);
+    printf("\n seq: %zu", pack.seq);
+    printf("\n ack: %zu", pack.ack);
     printf("\n data: %c", pack.data);
-    printf("\n checksum: %u\n", pack.checkSum);
+    printf("\n checksum: %zu\n", pack.checkSum);
 }
 
 
@@ -134,9 +134,9 @@ uint64_t checksum (Package pack)
     int i;
 
     for(i=0; i<sizestruct; i++)
+    {
         chksm = chksm + ptr[i];
-
-
+    }
     return chksm;
 }
 

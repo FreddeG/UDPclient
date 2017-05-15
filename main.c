@@ -3,14 +3,9 @@
 */
 
 #include "list.h"
-#include "Generic.h"
 
 #define SERVER "127.0.0.1" // use gethostbyname // getaddrinfo
-#define BUFLEN 512  //Max length of buffer
 #define PORT 8888   //The port on which to send data
-
-#define MAXDATA 200
-
 #define INITCONNECT 0
 #define WAITINITCONNECT 1
 #define WAITINGCONFIRMCONNECT 2
@@ -39,7 +34,7 @@ int main(void)
 
 
     struct sockaddr_in serverAddr;
-    int sock, i, slen=sizeof(serverAddr);
+    int sock, slen = sizeof(serverAddr);
     uint8_t count = 0;
     int currentState = 0;
     // char buf[BUFLEN];
