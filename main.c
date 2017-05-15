@@ -3,15 +3,9 @@
 */
 
 #include "list.h"
-#include <sys/time.h>
-#include "Generic.h"
 
 #define SERVER "127.0.0.1" // use gethostbyname // getaddrinfo
-#define BUFLEN 512  //Max length of buffer
 #define PORT 8888   //The port on which to send data
-
-#define MAXDATA 200
-
 #define INITCONNECT 0
 #define WAITINITCONNECT 1
 #define WAITINGCONFIRMCONNECT 2
@@ -35,144 +29,12 @@ typedef struct {
 } Package;
 */
 
-typedef struct {
-
-    Package pack;
-    bool ack;
-
-} PackageList;
-
-void die(char *s)
-{
-    perror(s);
-    exit(1);
-}
-
-void emptyPackage(Package *packToEmpty)
-{
-    packToEmpty->fin = false;
-    packToEmpty->reset = false;
-    packToEmpty->syn = false;
-    packToEmpty->seq = 0;
-    packToEmpty->ack = 0;
-    packToEmpty->timeStamp = 0;
-    packToEmpty->data = '\0';
-    packToEmpty->checkSum = 0;
-
-}
-
-
-
-long long current_timestamp() {
-    struct timeval te;
-    gettimeofday(&te, NULL); // get current time
-    long long milliseconds = te.tv_sec*1000LL + te.tv_usec/1000; // caculate milliseconds
-    // printf("milliseconds: %lld\n", milliseconds);
-    return milliseconds;
-}
-
-
-uint64_t initSEQ(void)
-{
-    struct timeval te;
-    gettimeofday(&te, NULL); // get current time
-    uint64_t milliseconds = te.tv_sec*1000LL + te.tv_usec/1000; // caculate milliseconds
-    // printf("milliseconds: %lld\n", milliseconds);
-    return milliseconds;
-}
-
-uint16_t getTimeStamp(void)
-{
-    // make sure to compare absolute value between current time and timestamp, check if bigger than x minutes/seconds
-
-    // 0-3 min ok, 57-60 ok check values
-    return 0;
-}
-
-
-
-void printPackage(Package pack)
-{
-    printf("\n fin: %d", pack.fin);
-    printf("\n reset: %d", pack.reset);
-    printf("\n syn: %d", pack.syn);
-    printf("\n seq: %u", pack.seq);
-    printf("\n ack: %u", pack.ack);
-    printf("\n data: %c", pack.data);
-    printf("\n checksum: %u\n", pack.checkSum);
-}
-
-
-uint64_t checksum (Package pack)
-{
-    unsigned char *ptr=(unsigned char *)&pack;
-    int sizestruct = sizeof(Package);
-    uint64_t chksm = 0;
-    int i;
-
-    for(i=0; i<sizestruct; i++)
-        chksm = chksm + ptr[i];
-
-
-    return chksm;
-}
-
-bool checksumChecker(Package pack)
-{
-    uint64_t stateVal = pack.checkSum;
-    pack.checkSum = 0;
-    uint64_t calcVal = checksum(pack);
-
-    if(stateVal == calcVal)
-    {
-        return true;
-    }
-    else
-    {
-        return false;
-    }
-}
-
-uint8_t viewPackage(Package pack)
-{
-
-    if(checksum(pack)) // checksum
-    {
-        if(pack.syn == true) return 1; // syn
-
-        if(pack.fin == true) return 4; // last package
-
-        if(pack.reset == true) return 5; // server resets connection
-
-        if(pack.data == '\0') return 2; // ack + seq, no data
-
-        if(pack.data != '\0') return 3; // ack + seq with data, package to read
-
-        printf("\n ERROR!");
-        exit(1);
-
-    }
-    else
-    {
-        return 0;
-    }
-
-    //checksum wrong return
-    // 0 bad case, (checksum fail)
-    // 1 syn (seq, no data, no ack)
-    // 2 ack (seq + ack, no data)
-    // 3 data (seq + ack + data)
-    // 4 fin (fin = true, rest doesn't matter)
-    // 5 reset
-
-}
-
 int main(void)
 {
 
 
     struct sockaddr_in serverAddr;
-    int sock, i, slen=sizeof(serverAddr);
+    int sock, slen = sizeof(serverAddr);
     uint8_t count = 0;
     int currentState = 0;
     // char buf[BUFLEN];
@@ -437,7 +299,7 @@ int main(void)
 
                                 while(list.head->data.seq <= inputBuf.ack)
                                 {
-                                    removeFirst(list.head);
+                                    removeFirst(&list);
                                     if (endFlag == false)
                                     {
                                         freeWin++;
@@ -458,7 +320,7 @@ int main(void)
                     else
                     {
                         //Resends the Current window!
-                        Node *current = list.head.;
+                        Node *current = list.head;
                         Node *previous = current;
                         while (current != NULL)
                         {
