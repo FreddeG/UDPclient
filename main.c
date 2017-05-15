@@ -437,7 +437,7 @@ int main(void)
 
                                 while(list.head->data.seq <= inputBuf.ack)
                                 {
-                                    removeFirst(list.head);
+                                    removeFirst(&list);
                                     if (endFlag == false)
                                     {
                                         freeWin++;
@@ -458,7 +458,7 @@ int main(void)
                     else
                     {
                         //Resends the Current window!
-                        Node *current = list.head.;
+                        Node *current = list.head;
                         Node *previous = current;
                         while (current != NULL)
                         {
