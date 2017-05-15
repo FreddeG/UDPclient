@@ -3,6 +3,8 @@
 */
 
 #include "list.h"
+#include <sys/time.h>
+#include "Generic.h"
 
 #define SERVER "127.0.0.1" // use gethostbyname // getaddrinfo
 #define BUFLEN 512  //Max length of buffer
@@ -17,6 +19,7 @@
 #define INITCLOSE 4
 #define WAITINGCLOSE 5
 #define CLOSED 6
+#define WINDOWSIZE 3
 
 /*
 typedef struct {
@@ -58,10 +61,24 @@ void emptyPackage(Package *packToEmpty)
 
 }
 
+
+
+long long current_timestamp() {
+    struct timeval te;
+    gettimeofday(&te, NULL); // get current time
+    long long milliseconds = te.tv_sec*1000LL + te.tv_usec/1000; // caculate milliseconds
+    // printf("milliseconds: %lld\n", milliseconds);
+    return milliseconds;
+}
+
+
 uint64_t initSEQ(void)
 {
-
-return 1;
+    struct timeval te;
+    gettimeofday(&te, NULL); // get current time
+    uint64_t milliseconds = te.tv_sec*1000LL + te.tv_usec/1000; // caculate milliseconds
+    // printf("milliseconds: %lld\n", milliseconds);
+    return milliseconds;
 }
 
 uint16_t getTimeStamp(void)
@@ -72,35 +89,7 @@ uint16_t getTimeStamp(void)
     return 0;
 }
 
-uint8_t viewPackage(Package pack)
-{
 
-    if(1) // checksum
-    {
-        if(pack.syn == true) return 1; // syn
-
-        if(pack.fin == true) return 4; // last package
-
-        if(pack.reset == true) return 5; // server resets connection
-
-        if(pack.data == '\0') return 2; // ack + seq, no data
-
-        if(pack.data != '\0') return 3; // ack + seq with data, package to read
-
-        printf("\n ERROR!");
-        exit(1);
-
-    }
-
-    //checksum wrong return
-    // 0 bad case, (checksum fail)
-    // 1 syn (seq, no data, no ack)
-    // 2 ack (seq + ack, no data)
-    // 3 data (seq + ack + data)
-    // 4 fin (fin = true, rest doesn't matter)
-    // 5 reset
-
-}
 
 void printPackage(Package pack)
 {
@@ -111,7 +100,6 @@ void printPackage(Package pack)
     printf("\n ack: %u", pack.ack);
     printf("\n data: %c", pack.data);
     printf("\n checksum: %u\n", pack.checkSum);
-
 }
 
 
@@ -129,6 +117,55 @@ uint64_t checksum (Package pack)
     return chksm;
 }
 
+bool checksumChecker(Package pack)
+{
+    uint64_t stateVal = pack.checkSum;
+    pack.checkSum = 0;
+    uint64_t calcVal = checksum(pack);
+
+    if(stateVal == calcVal)
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+uint8_t viewPackage(Package pack)
+{
+
+    if(checksum(pack)) // checksum
+    {
+        if(pack.syn == true) return 1; // syn
+
+        if(pack.fin == true) return 4; // last package
+
+        if(pack.reset == true) return 5; // server resets connection
+
+        if(pack.data == '\0') return 2; // ack + seq, no data
+
+        if(pack.data != '\0') return 3; // ack + seq with data, package to read
+
+        printf("\n ERROR!");
+        exit(1);
+
+    }
+    else
+    {
+        return 0;
+    }
+
+    //checksum wrong return
+    // 0 bad case, (checksum fail)
+    // 1 syn (seq, no data, no ack)
+    // 2 ack (seq + ack, no data)
+    // 3 data (seq + ack + data)
+    // 4 fin (fin = true, rest doesn't matter)
+    // 5 reset
+
+}
 
 int main(void)
 {
@@ -136,11 +173,14 @@ int main(void)
 
     struct sockaddr_in serverAddr;
     int sock, i, slen=sizeof(serverAddr);
+    uint8_t count = 0;
     int currentState = 0;
-   // char buf[BUFLEN];
+    // char buf[BUFLEN];
     char charFromFile;
     Package outputBuf, inputBuf;
     FILE *fp = NULL;
+    uint16_t freeWin = WINDOWSIZE;
+    bool endFlag = false;
 
     List list;
     list.head = NULL;
@@ -150,7 +190,7 @@ int main(void)
 
     //strcpy(buf.data, 'a');
     //printf("\n entered data %c \n" , outputBuf.data);
-   // char message[BUFLEN] = "test";
+    // char message[BUFLEN] = "test";
 
     if ( (sock=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
     {
@@ -162,7 +202,7 @@ int main(void)
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(PORT);
 
-   // struct sockaddr test;
+    // struct sockaddr test;
 // use gethostbyname to set sin_addr
 
     if (inet_aton(SERVER , &serverAddr.sin_addr) == 0)
@@ -192,9 +232,8 @@ int main(void)
                 currentState = WAITINITCONNECT;
 
                 break;
+
             case WAITINITCONNECT:
-
-
 
                 readFdSet = activeFdSet;
                 // lägg in time envl
@@ -234,7 +273,7 @@ int main(void)
                     }
                     else
                     {
-                        //
+                        // Gör något;
                     }
 
 
@@ -243,14 +282,31 @@ int main(void)
                 else
                 {
                     // if timeout, resend
-                    printf("\n timeout occured!");
-                    if (sendto(sock, &outputBuf, sizeof(Package), 0, (struct sockaddr*) &serverAddr, slen) == -1)
+                    if(count<3)
                     {
-                        die("sendto()");
+                        count++;
+
+                        printf("\n timeout occured!");
+                        if (sendto(sock, &outputBuf, sizeof(Package), 0, (struct sockaddr *) &serverAddr, slen) == -1)
+                        {
+                            die("sendto()");
+                        }
+                        printf("\n Output package");
+                        printPackage(outputBuf);
                     }
-                    printf("\n Output package");
-                    printPackage(outputBuf);
-                    // want to quit?
+                    else
+                    {
+                        uint contFlag = 0;
+                        contFlag = yesNoRepeater("No responce from the server! Continue?");
+                        if(contFlag)
+                        {
+                            currentState = INITCONNECT;
+                        }
+                        else
+                        {
+                            exit(EXIT_FAILURE);
+                        }
+                    }
 
                     break;
 
@@ -306,50 +362,134 @@ int main(void)
                 {
                     currentState = CONNECTED;
                     printf("\n REACHED CONNECTED!");
-
+                    if(fp == NULL)
+                    {
+                        fp = fopen ("file.txt", "r");
+                    }
+                    else
+                    {
+                        return 0; // solve loop somehow to exit when EOF is found
+                    }
+                    if(fp == NULL) // error
+                    {
+                        die("fopen");
+                    }
                 }
 
                 break;
 
             case CONNECTED:
+
                 //printf("\n Type something to add to list");
                 //printPackage(outputBuf);
-                if(fp == NULL)
+                //scanf(" %c", &outputBuf.data);
+
+                //Send packages until window full. Check that we have not reached the last package.
+                if(freeWin != 0 && endFlag == false)
                 {
-                    fp = fopen ("file.txt", "r");
+                    charFromFile = fgetc(fp);
+                    if (charFromFile != EOF)
+                    {
+                        outputBuf.data = charFromFile;
+                        outputBuf.checkSum = 0;
+                        outputBuf.checkSum = checksum(outputBuf); // remember to set checksum to 0 before in normal cases
+                        addNodeLast(&list, outputBuf);
+                        if (sendto(sock, &outputBuf, sizeof(Package), 0, (struct sockaddr*) &serverAddr, slen) == -1)
+                        {
+                            die("sendto()");
+                        }
+                        printf("\n Output package");
+                        freeWin--;
+                    }
+                    else //We have reached the last package. Time to prepare shutdown.
+                    {
+                        endFlag = true;
+                    }
+
+                }
+                else if(list.head != NULL) //We have sent all of the packages in the window and are w8ing for ack:s.
+                {
+                    timeout_t.tv_sec = 5; // Time that we listen for acks b4 resending the window.
+                    timeout_t.tv_usec = 0;
+                    if (select(FD_SETSIZE, &readFdSet, NULL, NULL, &timeout_t) < 0) { // blocking, waits until one the FD is set to ready, will keep the ready ones in readFdSet
+                        perror("Select failed\n");
+                        exit(EXIT_FAILURE);
+                    }
+                    else if(FD_ISSET(sock, &readFdSet)) // if true we got a package so read it.
+                    {
+                        if ((recvfrom(sock, &inputBuf, sizeof(Package), 0, (struct sockaddr *) &serverAddr, &slen)) ==
+                            -1) {
+                            // perror(recvfrom());
+                            die("recvfrom()");
+                        }
+
+                        if(viewPackage(inputBuf) == 3)
+                        {
+                            // Oldpack! Discard!
+                            if(list.head->data.seq < inputBuf.ack)
+                            {
+                                if(list.head->data.seq + WINDOWSIZE <= inputBuf.ack)// Should not happen!
+                                {
+                                    printf("\nDebug: List exeeded");
+                                    getchar();
+                                    exit(1);
+                                }
+
+                                while(list.head->data.seq <= inputBuf.ack)
+                                {
+                                    removeFirst(list.head);
+                                    if (endFlag == false)
+                                    {
+                                        freeWin++;
+                                    }
+                                    if(list.head == NULL)
+                                    {
+                                        break;
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                //Do nothing
+                            }
+
+                        }
+                    }
+                    else
+                    {
+                        //Resends the Current window!
+                        Node *current = list.head.;
+                        Node *previous = current;
+                        while (current != NULL)
+                        {
+                            previous = current;
+                            outputBuf = previous->data;
+                            current = current->Next;
+                            if (sendto(sock, &outputBuf, sizeof(Package), 0, (struct sockaddr*) &serverAddr, slen) == -1)
+                            {
+                                die("sendto()");
+                            }
+                        }
+
+                    }
                 }
                 else
                 {
-                    return 0; // solve loop somehow to exit when EOF is found
-                }
-                if(fp == NULL) // error
-                {
-                    die("fopen");
-                }
-                //scanf(" %c", &outputBuf.data);
-                while ((charFromFile = fgetc(fp)) != EOF)
-                {
-                    outputBuf.data = charFromFile;
-                    outputBuf.checkSum = 0;
-                    outputBuf.checkSum = checksum(outputBuf); // remember to set checksum to 0 before in normal cases
-                    addNodeLast(&list, outputBuf);
-
-                    // send
-
-
-                    // check ack?
+                    currentState = INITCLOSE;
+                    printf("\n");
                 }
 
 
 
-                printf("\nNumber of nodes: %d", numberOfNodes(&list));
-                printList(&list);
-                getchar();
-                // WE ARE DONE !!!
-               // currentState = INITCLOSE;
+            printf("\nNumber of nodes: %d", numberOfNodes(&list));
+            printList(&list);
+            getchar();
+            // WE ARE DONE !!!
+            // currentState = INITCLOSE;
 
 
                 break;
+
             case INITCLOSE:
 
 
@@ -360,12 +500,14 @@ int main(void)
                 break;
             case CLOSED:
 
-                break;
-
+            break;
         }
+
     }
+    return 0;
+}
 
-
+/*
     while(1)
     {
 
@@ -389,5 +531,5 @@ int main(void)
     }
 
     close(sock);
-    return 0;
-}
+
+}*/

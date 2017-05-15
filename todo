@@ -1,0 +1,11 @@
+
+
+1. flytta över list.h o list.c till server
+
+2. fixa tid + srand för seq
+
+3. fixa att när vi skicker ack från sliding window (server) så tas noden bort och skrivs till filen
+
+4. LÄGG IN CHECKSUM KOLL + RANDOM ERRORS SIST!!!!
+
+5. men planera för out of order innan
