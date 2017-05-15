@@ -36,7 +36,6 @@ typedef struct {
 typedef struct node
 {
     Package data;
-    bool ACK;
     struct node *Next;
 } Node;
 

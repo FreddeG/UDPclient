@@ -3,6 +3,8 @@
 */
 
 #include "list.h"
+#include <sys/time.h>
+#include "Generic.h"
 
 #define SERVER "127.0.0.1" // use gethostbyname // getaddrinfo
 #define BUFLEN 512  //Max length of buffer
@@ -59,10 +61,24 @@ void emptyPackage(Package *packToEmpty)
 
 }
 
+
+
+long long current_timestamp() {
+    struct timeval te;
+    gettimeofday(&te, NULL); // get current time
+    long long milliseconds = te.tv_sec*1000LL + te.tv_usec/1000; // caculate milliseconds
+    // printf("milliseconds: %lld\n", milliseconds);
+    return milliseconds;
+}
+
+
 uint64_t initSEQ(void)
 {
-
-    return 1;
+    struct timeval te;
+    gettimeofday(&te, NULL); // get current time
+    uint64_t milliseconds = te.tv_sec*1000LL + te.tv_usec/1000; // caculate milliseconds
+    // printf("milliseconds: %lld\n", milliseconds);
+    return milliseconds;
 }
 
 uint16_t getTimeStamp(void)
@@ -73,35 +89,7 @@ uint16_t getTimeStamp(void)
     return 0;
 }
 
-uint8_t viewPackage(Package pack)
-{
 
-    if(1) // checksum
-    {
-        if(pack.syn == true) return 1; // syn
-
-        if(pack.fin == true) return 4; // last package
-
-        if(pack.reset == true) return 5; // server resets connection
-
-        if(pack.data == '\0') return 2; // ack + seq, no data
-
-        if(pack.data != '\0') return 3; // ack + seq with data, package to read
-
-        printf("\n ERROR!");
-        exit(1);
-
-    }
-
-    //checksum wrong return
-    // 0 bad case, (checksum fail)
-    // 1 syn (seq, no data, no ack)
-    // 2 ack (seq + ack, no data)
-    // 3 data (seq + ack + data)
-    // 4 fin (fin = true, rest doesn't matter)
-    // 5 reset
-
-}
 
 void printPackage(Package pack)
 {
@@ -112,7 +100,6 @@ void printPackage(Package pack)
     printf("\n ack: %u", pack.ack);
     printf("\n data: %c", pack.data);
     printf("\n checksum: %u\n", pack.checkSum);
-
 }
 
 
@@ -130,6 +117,55 @@ uint64_t checksum (Package pack)
     return chksm;
 }
 
+bool checksumChecker(Package pack)
+{
+    uint64_t stateVal = pack.checkSum;
+    pack.checkSum = 0;
+    uint64_t calcVal = checksum(pack);
+
+    if(stateVal == calcVal)
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+uint8_t viewPackage(Package pack)
+{
+
+    if(checksum(pack)) // checksum
+    {
+        if(pack.syn == true) return 1; // syn
+
+        if(pack.fin == true) return 4; // last package
+
+        if(pack.reset == true) return 5; // server resets connection
+
+        if(pack.data == '\0') return 2; // ack + seq, no data
+
+        if(pack.data != '\0') return 3; // ack + seq with data, package to read
+
+        printf("\n ERROR!");
+        exit(1);
+
+    }
+    else
+    {
+        return 0;
+    }
+
+    //checksum wrong return
+    // 0 bad case, (checksum fail)
+    // 1 syn (seq, no data, no ack)
+    // 2 ack (seq + ack, no data)
+    // 3 data (seq + ack + data)
+    // 4 fin (fin = true, rest doesn't matter)
+    // 5 reset
+
+}
 
 int main(void)
 {
@@ -137,6 +173,7 @@ int main(void)
 
     struct sockaddr_in serverAddr;
     int sock, i, slen=sizeof(serverAddr);
+    uint8_t count = 0;
     int currentState = 0;
     // char buf[BUFLEN];
     char charFromFile;
@@ -195,9 +232,8 @@ int main(void)
                 currentState = WAITINITCONNECT;
 
                 break;
+
             case WAITINITCONNECT:
-
-
 
                 readFdSet = activeFdSet;
                 // lägg in time envl
@@ -237,7 +273,7 @@ int main(void)
                     }
                     else
                     {
-                        //
+                        // Gör något;
                     }
 
 
@@ -246,14 +282,31 @@ int main(void)
                 else
                 {
                     // if timeout, resend
-                    printf("\n timeout occured!");
-                    if (sendto(sock, &outputBuf, sizeof(Package), 0, (struct sockaddr*) &serverAddr, slen) == -1)
+                    if(count<3)
                     {
-                        die("sendto()");
+                        count++;
+
+                        printf("\n timeout occured!");
+                        if (sendto(sock, &outputBuf, sizeof(Package), 0, (struct sockaddr *) &serverAddr, slen) == -1)
+                        {
+                            die("sendto()");
+                        }
+                        printf("\n Output package");
+                        printPackage(outputBuf);
                     }
-                    printf("\n Output package");
-                    printPackage(outputBuf);
-                    // want to quit?
+                    else
+                    {
+                        uint contFlag = 0;
+                        contFlag = yesNoRepeater("No responce from the server! Continue?");
+                        if(contFlag)
+                        {
+                            currentState = INITCONNECT;
+                        }
+                        else
+                        {
+                            exit(EXIT_FAILURE);
+                        }
+                    }
 
                     break;
 
@@ -354,7 +407,7 @@ int main(void)
                     }
 
                 }
-                else if(endFlag == false) //We have sent all of teh packages in the window and are w8ing for ack:s.
+                else if(list.head != NULL) //We have sent all of the packages in the window and are w8ing for ack:s.
                 {
                     timeout_t.tv_sec = 5; // Time that we listen for acks b4 resending the window.
                     timeout_t.tv_usec = 0;
@@ -369,12 +422,43 @@ int main(void)
                             // perror(recvfrom());
                             die("recvfrom()");
                         }
-                        // loop trough list and remove all posts that have sec <= ack and for each removed set freeWin++
+
+                        if(viewPackage(inputBuf) == 3)
+                        {
+                            // Oldpack! Discard!
+                            if(list.head->data.seq < inputBuf.ack)
+                            {
+                                if(list.head->data.seq + WINDOWSIZE <= inputBuf.ack)// Should not happen!
+                                {
+                                    printf("\nDebug: List exeeded");
+                                    getchar();
+                                    exit(1);
+                                }
+
+                                while(list.head->data.seq <= inputBuf.ack)
+                                {
+                                    removeFirst(list.head);
+                                    if (endFlag == false)
+                                    {
+                                        freeWin++;
+                                    }
+                                    if(list.head == NULL)
+                                    {
+                                        break;
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                //Do nothing
+                            }
+
+                        }
                     }
                     else
                     {
-                        //FIXA DENNA
-                        Node *current = list.head;
+                        //Resends the Current window!
+                        Node *current = list.head.;
                         Node *previous = current;
                         while (current != NULL)
                         {
@@ -391,15 +475,9 @@ int main(void)
                 }
                 else
                 {
-                    //All acks must have been recived
                     currentState = INITCLOSE;
+                    printf("\n");
                 }
-
-                // send
-
-
-                // check ack?
-
 
 
 
