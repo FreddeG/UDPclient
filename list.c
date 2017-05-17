@@ -85,7 +85,7 @@ void addNodeLast(List *list, Package dataInput)
 
 Node* retrieveLastNode(List list)
 {
-    if(list.head == NULL)
+    if(list.head != NULL)
     {
         Node *current = list.head;
         while (current->Next != NULL) {
