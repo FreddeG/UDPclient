@@ -313,24 +313,25 @@ int main(void)
                         printf("\n-=Input package=-");
                         printPackage(inputBuf);
 
-                        //If the package contains data!
-                        if(viewPackage(inputBuf) == 3)
+                        //If the package contains ack+seq!
+                        if(viewPackage(inputBuf) == 2)
                         {
                             // Oldpack! Discard!
-                            if(list.head->data.seq < inputBuf.ack)
+                            if(incLowAck < inputBuf.ack)
                             {
-                                if(list.head->data.seq + WINDOWSIZE-1 <= inputBuf.ack)// Should not happen!
+                                if(incLowAck + WINDOWSIZE-1 <= inputBuf.ack)// Should not happen!
                                 {
-                                    printf("\nDebug: Ack exeede sent seq!");
+                                    printf("\nDebug: Ack exceed sent seq!");
                                     getchar();
                                     exit(1);
                                 }
 
-                                while(list.head->data.seq <= inputBuf.ack)
+                                while(incLowAck <= inputBuf.ack)
                                 {
                                     removeFirst(&list);
                                     if (endFlag == false)
                                     {
+                                        printf("\nMOVING WIN!");
                                         freeWin++;
                                     }
                                     if(list.head == NULL)
@@ -343,6 +344,10 @@ int main(void)
                             {
                                 printf("\nOldpack! Discard!\n");
                             }
+                        }
+                        else
+                        {
+                            printf("\nWrong Type or Broken package!\n");
                         }
                     }
                     else
@@ -405,9 +410,10 @@ int main(void)
                     printf("\nincLowAck:%zu ", incLowAck);
                     printf("\n\nReached INITCLOSED!");
                 }
-
+                /*
                 printf("\nNumber of nodes: %d", numberOfNodes(&list));
                 printList(&list);
+                */
                 break;
             }
 
