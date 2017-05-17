@@ -1,8 +1,9 @@
 /*
-    Simple udp client
+    Simple udp client. DOES NOT CHECK FOR OTHER INCOMING CONNECTIONS YET!
 */
 
 #include "list.h"
+
 
 #define SERVER "127.0.0.1" // use gethostbyname // getaddrinfo
 #define PORT 8888   //The port on which to send data
@@ -43,6 +44,7 @@ int main(void)
     FILE *fp = NULL;
     uint16_t freeWin = WINDOWSIZE;
     bool endFlag = false;
+    uint64_t incLowAck = 0;
 
     List list;
     list.head = NULL;
@@ -79,24 +81,32 @@ int main(void)
     while(1) {
         switch (currentState) {
             case INITCONNECT:
+            {
                 emptyPackage(&outputBuf);
-                outputBuf.seq = initSEQ();// creates SEQ from time(NULL)
+                incLowAck = initSEQ(); // creates SEQ from time(NULL)
+                outputBuf.seq = incLowAck;
                 outputBuf.syn = true;
+                outputBuf.checkSum = checksum(outputBuf);
 
                 if (sendto(sock, &outputBuf, sizeof(Package), 0, (struct sockaddr *) &serverAddr, slen) == -1) {
                     perror("sendto()");
                     exit(1);
                     // die("sendto()"); // fails
                 }
+
+                // Errortracing code
                 printf("\n Output package");
                 printPackage(outputBuf);
+                printf("\nincLowAck:%zu ", incLowAck);
 
                 currentState = WAITINITCONNECT;
 
                 break;
+            }
+
 
             case WAITINITCONNECT:
-
+            {
                 readFdSet = activeFdSet;
                 // lägg in time envl
                 timeout_t.tv_sec = 10;
@@ -109,41 +119,46 @@ int main(void)
                 }
                 else if(FD_ISSET(sock, &readFdSet))
                 {
-
+                    //If recfrom fails (returns -1) then terminate.
                     if ((recvfrom(sock, &inputBuf, sizeof(Package), 0, (struct sockaddr *) &serverAddr, &slen)) == -1) {
                         // perror(recvfrom());
                         die("recvfrom()");
                     }
+
+                    // Errortracing code
                     printf("\n Input package");
                     printPackage(inputBuf);
+                    printf("\nincLowAck:%zu " ,incLowAck);
 
-                    if(viewPackage(inputBuf) == 2) // 2
+                    // If the pacage is of right type and has the expected ack move on!
+                    if((viewPackage(inputBuf) == 2) && (inputBuf.ack == incLowAck)) // 2
                     {
                         emptyPackage(&outputBuf);
-                        outputBuf.seq = inputBuf.ack;
-                        outputBuf.ack = inputBuf.seq +1;
+                        incLowAck = inputBuf.ack + 1;
+                        outputBuf.seq = incLowAck;
+                        outputBuf.ack = inputBuf.seq;
+                        checksum(outputBuf);
 
                         if (sendto(sock, &outputBuf, sizeof(Package), 0, (struct sockaddr*) &serverAddr, slen) == -1)
                         {
                             die("sendto()");
                         }
+
+                        // Errortracing code
                         printf("\n Output package");
                         printPackage(outputBuf);
+                        printf("\nincLowAck:%zu ", incLowAck);
 
                         currentState = WAITINGCONFIRMCONNECT;
-
                     }
                     else
                     {
-                        // Gör något;
+                        printf("\n Unexpected or broken package!\n");
                     }
-
-
-                    // break
                 }
                 else
                 {
-                    // if timeout, resend
+                    // if timeout, resend up to 3 times
                     if(count<3)
                     {
                         count++;
@@ -153,74 +168,87 @@ int main(void)
                         {
                             die("sendto()");
                         }
+
+                        // Errortracing code
                         printf("\n Output package");
                         printPackage(outputBuf);
+                        printf("\nincLowAck:%zu ", incLowAck);
                     }
+                    //Host unresponsive during the establish connection phase. Abort?
                     else
                     {
                         uint contFlag = 0;
                         contFlag = yesNoRepeater("No responce from the server! Continue?");
                         if(contFlag)
                         {
+                            //Try again!
                             currentState = INITCONNECT;
                         }
                         else
                         {
+                            //Terminate!
                             exit(EXIT_FAILURE);
                         }
                     }
-
-                    break;
-
                 }
 
-
                 break;
-            case WAITINGCONFIRMCONNECT:
+            }
 
+
+            case WAITINGCONFIRMCONNECT:
+            {
                 readFdSet = activeFdSet;
-                // lägg in time envl
                 timeout_t.tv_sec = 5; // needs bigger timeout than server
                 timeout_t.tv_usec = 0;
 
-
+                // Calls select with a time counter. if we dont "recieve" during this time. Assume connection success.
                 if (select(FD_SETSIZE, &readFdSet, NULL, NULL, &timeout_t) < 0) { // blocking, waits until one the FD is set to ready, will keep the ready ones in readFdSet
                     perror("Select failed\n");
                     exit(EXIT_FAILURE);
                 }
                 else if(FD_ISSET(sock, &readFdSet))
                 {
-
+                    // Something has come in, recieve it!
                     if ((recvfrom(sock, &inputBuf, sizeof(Package), 0, (struct sockaddr *) &serverAddr, &slen)) == -1) {
                         // perror(recvfrom());
                         die("recvfrom()");
                     }
+
+                    // Errortracing code
                     printf("\n Input package");
                     printPackage(inputBuf);
-                    // causes problems if wrong client tries to connect
+                    printf("\nincLowAck:%zu ", incLowAck);
 
-                    if(viewPackage(inputBuf) == 2) // 2
+
+                    // If we get a resent syn+ack, resend the ack.
+                    if((viewPackage(inputBuf)) == 2 && ((incLowAck-1) == inputBuf.ack)) // 2
                     {
-
-
+                        //if sendto fails (return -1) terminate
                         if (sendto(sock, &outputBuf, sizeof(Package), 0, (struct sockaddr*) &serverAddr, slen) == -1)
                         {
                             die("sendto()");
                         }
+
+                        // Errortracing code
                         printf("\n Output package");
                         printPackage(outputBuf);
+                        printf("\nincLowAck:%zu ", incLowAck);
 
 
                     }
                     else
                     {
-                        // weird package/broken package, causes timeout reset, meaning a lot of broken packages mean we never establish a connection
+                        printf("\nUnexpected or broken package\n");
+                        /* weird package/broken package, causes timeout reset,
+                         * meaning a lot of broken packages mean we never establish a connection
+                         */
                     }
 
 
                     // break
                 }
-                else
+                else // SUCCSESS! Open the filepointer we want to transmit.
                 {
                     currentState = CONNECTED;
                     printf("\n REACHED CONNECTED!");
@@ -230,46 +258,62 @@ int main(void)
                     }
                     else
                     {
-                        return 0; // solve loop somehow to exit when EOF is found
+                        exit(EXIT_FAILURE); // solve loop somehow to exit when EOF is found
                     }
                     if(fp == NULL) // error
                     {
                         die("fopen");
                     }
                 }
-
                 break;
+            }
+
 
             case CONNECTED:
-
-                //printf("\n Type something to add to list");
-                //printPackage(outputBuf);
-                //scanf(" %c", &outputBuf.data);
-
+            {
                 //Send packages until window full. Check that we have not reached the last package.
-                if(freeWin != 0 && endFlag == false)
+                if((freeWin != 0) && (endFlag == false))
                 {
                     charFromFile = fgetc(fp);
                     if (charFromFile != EOF)
                     {
+                        //If this is the start of the transmission, set SEQ with lowIncAck (from handshake).
+                        if((list.head == NULL))
+                        {
+                            outputBuf.seq = incLowAck + 1;
+                        }
+                        //This is not the first time we send data: continue from last seq.
+                        else
+                        {
+                            outputBuf.seq = outputBuf.seq + 1;
+                        }
+
+                        outputBuf.ack = inputBuf.seq;
                         outputBuf.data = charFromFile;
                         outputBuf.checkSum = 0;
-                        outputBuf.checkSum = checksum(outputBuf); // remember to set checksum to 0 before in normal cases
+                        outputBuf.checkSum = checksum(outputBuf);
+
+                        //Put the item in the "window".
                         addNodeLast(&list, outputBuf);
+
+                        //If send fails (returns -1) terminate else move on.
                         if (sendto(sock, &outputBuf, sizeof(Package), 0, (struct sockaddr*) &serverAddr, slen) == -1)
                         {
                             die("sendto()");
                         }
+
+                        // Errortracing code
                         printf("\n Output package");
+                        printPackage(outputBuf);
+                        printf("\nincLowAck:%zu ", incLowAck);
                         freeWin--;
                     }
                     else //We have reached the last package. Time to prepare shutdown.
                     {
                         endFlag = true;
                     }
-
                 }
-                else if(list.head != NULL) //We have sent all of the packages in the window and are w8ing for ack:s.
+                else if(list.head != NULL) //We have sent all of the packages in the window and still w8ing for ack:s.
                 {
                     timeout_t.tv_sec = 5; // Time that we listen for acks b4 resending the window.
                     timeout_t.tv_usec = 0;
@@ -285,14 +329,15 @@ int main(void)
                             die("recvfrom()");
                         }
 
+                        //If the package contains data!
                         if(viewPackage(inputBuf) == 3)
                         {
                             // Oldpack! Discard!
                             if(list.head->data.seq < inputBuf.ack)
                             {
-                                if(list.head->data.seq + WINDOWSIZE <= inputBuf.ack)// Should not happen!
+                                if(list.head->data.seq + WINDOWSIZE-1 <= inputBuf.ack)// Should not happen!
                                 {
-                                    printf("\nDebug: List exeeded");
+                                    printf("\nDebug: Ack exeede sent seq!");
                                     getchar();
                                     exit(1);
                                 }
@@ -314,18 +359,15 @@ int main(void)
                             {
                                 //Do nothing
                             }
-
                         }
                     }
                     else
                     {
                         //Resends the Current window!
                         Node *current = list.head;
-                        Node *previous = current;
                         while (current != NULL)
                         {
-                            previous = current;
-                            outputBuf = previous->data;
+                            outputBuf = current->data;
                             current = current->Next;
                             if (sendto(sock, &outputBuf, sizeof(Package), 0, (struct sockaddr*) &serverAddr, slen) == -1)
                             {
@@ -341,28 +383,28 @@ int main(void)
                     printf("\n");
                 }
 
-
-
-            printf("\nNumber of nodes: %d", numberOfNodes(&list));
-            printList(&list);
-            getchar();
-            // WE ARE DONE !!!
-            // currentState = INITCLOSE;
-
-
+                printf("\nNumber of nodes: %d", numberOfNodes(&list));
+                printList(&list);
+                getchar();
                 break;
+            }
 
             case INITCLOSE:
-
-
-
+            {
                 break;
+            }
             case WAITINGCLOSE:
-
+            {
                 break;
+            }
             case CLOSED:
-
-            break;
+            {
+                break;
+            }
+            default:
+            {
+                break;
+            }
         }
 
     }
