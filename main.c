@@ -3,8 +3,6 @@
 */
 
 #include "list.h"
-#include "Generic.h"
-
 
 #define SERVER "127.0.0.1" // use gethostbyname // getaddrinfo
 #define PORT 8888   //The port on which to send data
@@ -17,26 +15,14 @@
 #define CLOSED 6
 #define WINDOWSIZE 3
 
-/*
-typedef struct {
-
-    bool fin;
-    bool reset;
-    bool syn;
-    uint64_t seq;
-    uint64_t ack;
-    uint16_t timeStamp;
-    char data;
-    uint64_t checkSum;
-} Package;
-*/
 
 int main(void)
 {
 
 
     struct sockaddr_in serverAddr;
-    int sock, slen = sizeof(serverAddr);
+    int sock;
+    socklen_t slen = sizeof(serverAddr);
     uint8_t count = 0;
     int currentState = 0;
     // char buf[BUFLEN];
@@ -52,10 +38,6 @@ int main(void)
 
     fd_set activeFdSet, readFdSet;
     struct timeval timeout_t;
-
-    //strcpy(buf.data, 'a');
-    //printf("\n entered data %c \n" , outputBuf.data);
-    // char message[BUFLEN] = "test";
 
     if ( (sock=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
     {
@@ -454,7 +436,7 @@ int main(void)
                     //If the package contains data!
                     if(viewPackage(inputBuf) == 4 && inputBuf.seq == incLowAck)
                     {
-                        emptyPackage(outputBuf);
+                        emptyPackage(&outputBuf);
                         outputBuf.seq = (incLowAck++);
                         outputBuf.ack = inputBuf.seq;
                         //If send fails (returns -1) terminate else move on.
