@@ -57,6 +57,7 @@ void removeFirst(List* myList);
 Node *createNode(const Package pack);
 void addNodeLast(List *list, Package dataInput);
 void addNodeFirst(List *list, Package dataInput);
+Node* retrieveLastNode(List list);
 int numberOfNodes(List *list);
 int IsListEmpty(List *list);
 void printList(List *mylist);
