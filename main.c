@@ -3,7 +3,6 @@
 */
 
 #include "list.h"
-#include "Generic.h"
 
 
 #define SERVER "127.0.0.1" // use gethostbyname // getaddrinfo
@@ -264,7 +263,7 @@ int main(void)
 
             case CONNECTED:
             {
-                printf("\nfreeWin: %zu, endFlag: %d\n\n", freeWin, endFlag);
+                printf("\nfreeWin: %hu, endFlag: %d\n\n", freeWin, endFlag);
                 //Send packages until window full. Check that we have not reached the last package.
                 if((freeWin != 0) && (endFlag == false))
                 {
