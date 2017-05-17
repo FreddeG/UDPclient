@@ -84,7 +84,7 @@ void printPackage(Package pack)
 uint8_t viewPackage(Package pack)
 {
 
-    if(checksum(pack)) // checksum
+    if(checksumChecker(pack)) // checksum
     {
         if(pack.syn == true) return 1; // syn
 
@@ -102,6 +102,7 @@ uint8_t viewPackage(Package pack)
     }
     else
     {
+        printf("\nBAD CHECKSUM!");
         return 0;
     }
 

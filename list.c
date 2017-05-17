@@ -83,6 +83,22 @@ void addNodeLast(List *list, Package dataInput)
 
 }
 
+Node* retrieveLastNode(List list)
+{
+    if(list.head == NULL)
+    {
+        Node *current = list.head;
+        while (current->Next != NULL) {
+            current = current->Next;
+        }
+        return current;
+    }
+    else
+    {
+        return NULL;
+    }
+}
+
 void addNodeFirst(List *list, Package dataInput) // will work on head being NULL as it will just overwrite the nodes->Next NULL with NULL
 {
     Node *temp = list->head;
