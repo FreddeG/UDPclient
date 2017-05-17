@@ -3,6 +3,7 @@
 */
 
 #include "list.h"
+#include "Generic.h"
 
 
 #define SERVER "127.0.0.1" // use gethostbyname // getaddrinfo
@@ -128,7 +129,6 @@ int main(void)
                     // Errortracing code
                     printf("\n Input package");
                     printPackage(inputBuf);
-                    printf("\nincLowAck:%zu " ,incLowAck);
 
                     // If the pacage is of right type and has the expected ack move on!
                     if((viewPackage(inputBuf) == 2) && (inputBuf.ack == incLowAck)) // 2
@@ -191,7 +191,6 @@ int main(void)
                         }
                     }
                 }
-
                 break;
             }
 
@@ -218,7 +217,6 @@ int main(void)
                     // Errortracing code
                     printf("\n Input package");
                     printPackage(inputBuf);
-                    printf("\nincLowAck:%zu ", incLowAck);
 
 
                     // If we get a resent syn+ack, resend the ack.
@@ -234,8 +232,6 @@ int main(void)
                         printf("\n Output package");
                         printPackage(outputBuf);
                         printf("\nincLowAck:%zu ", incLowAck);
-
-
                     }
                     else
                     {
@@ -244,9 +240,6 @@ int main(void)
                          * meaning a lot of broken packages mean we never establish a connection
                          */
                     }
-
-
-                    // break
                 }
                 else // SUCCSESS! Open the filepointer we want to transmit.
                 {
@@ -271,6 +264,7 @@ int main(void)
 
             case CONNECTED:
             {
+                printf("\nfreeWin: %zu, endFlag: %d\n\n", freeWin, endFlag);
                 //Send packages until window full. Check that we have not reached the last package.
                 if((freeWin != 0) && (endFlag == false))
                 {
@@ -285,7 +279,9 @@ int main(void)
                         //This is not the first time we send data: continue from last seq.
                         else
                         {
-                            outputBuf.seq = outputBuf.seq + 1;
+                            Node* temp = retrieveLastNode(list);
+                            outputBuf.seq = temp->data.seq+1;
+                            incLowAck = outputBuf.seq;
                         }
 
                         outputBuf.ack = inputBuf.seq;
@@ -329,6 +325,10 @@ int main(void)
                             die("recvfrom()");
                         }
 
+                        // Errortracing Code!
+                        printf("\n Input package");
+                        printPackage(inputBuf);
+
                         //If the package contains data!
                         if(viewPackage(inputBuf) == 3)
                         {
@@ -357,7 +357,7 @@ int main(void)
                             }
                             else
                             {
-                                //Do nothing
+                                printf("\nOldpack! Discard!\n");
                             }
                         }
                     }
@@ -373,8 +373,10 @@ int main(void)
                             {
                                 die("sendto()");
                             }
-                        }
+                            printf("\nResending Window!");
+                            printPackage(outputBuf);
 
+                        }
                     }
                 }
                 else
@@ -385,7 +387,6 @@ int main(void)
 
                 printf("\nNumber of nodes: %d", numberOfNodes(&list));
                 printList(&list);
-                getchar();
                 break;
             }
 
