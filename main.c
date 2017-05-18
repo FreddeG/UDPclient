@@ -80,7 +80,8 @@ int main(void)
                 // Errortracing code
                 printf("\n-=Output package=-");
                 printPackage(outputBuf);
-                printf("\nincLowAck:%zu ", incLowAck);
+                printPackage(outputBuf);
+                printf("incLowAck:%zu \n", incLowAck);
 
                 currentState = WAITINITCONNECT;
 
@@ -129,7 +130,8 @@ int main(void)
                         // Errortracing code
                         printf("\n-=Output package=-");
                         printPackage(outputBuf);
-                        printf("\nincLowAck:%zu ", incLowAck);
+                        printPackage(outputBuf);
+                        printf("incLowAck:%zu \n", incLowAck);
 
                         currentState = WAITINGCONFIRMCONNECT;
                     }
@@ -154,7 +156,8 @@ int main(void)
                         // Errortracing code
                         printf("\n-=Output package=-");
                         printPackage(outputBuf);
-                        printf("\nincLowAck:%zu ", incLowAck);
+                        printPackage(outputBuf);
+                        printf("incLowAck:%zu \n", incLowAck);
                     }
                     //Host unresponsive during the establish connection phase. Abort?
                     else
@@ -213,7 +216,8 @@ int main(void)
                         // Errortracing code
                         printf("\n-=Output package=-");
                         printPackage(outputBuf);
-                        printf("\nincLowAck:%zu ", incLowAck);
+                        printPackage(outputBuf);
+                        printf("incLowAck:%zu \n", incLowAck);
                     }
                     else
                     {
@@ -263,9 +267,9 @@ int main(void)
                         //This is not the first time we send data: continue from last seq.
                         else
                         {
-                            Node* temp = retrieveLastNode(list);
-                            outputBuf.seq = temp->data.seq+1;
-                            incLowAck = outputBuf.seq;
+                            Node* last = retrieveLastNode(list);
+                            outputBuf.seq = last->data.seq+1;
+                            incLowAck = list.head->data.seq;
                         }
 
                         outputBuf.ack = inputBuf.seq;
@@ -285,7 +289,8 @@ int main(void)
                         // Errortracing code
                         printf("\n-=Output package=-");
                         printPackage(outputBuf);
-                        printf("\nincLowAck:%zu ", incLowAck);
+                        printPackage(outputBuf);
+                        printf("incLowAck:%zu \n", incLowAck);
                         freeWin--;
                     }
                     else //We have reached the last package. Time to prepare shutdown.
@@ -367,6 +372,8 @@ int main(void)
                                 }
                                 printf("\nResending Window!\n-=Output package=-");
                                 printPackage(outputBuf);
+                                printPackage(outputBuf);
+                                printf("incLowAck:%zu \n", incLowAck);
 
                             }
                         }
@@ -407,7 +414,7 @@ int main(void)
                     //Errortracing Code!
                     printf("-=SENDING FIN!=-");
                     printPackage(outputBuf);
-                    printf("\nincLowAck:%zu ", incLowAck);
+                    printf("incLowAck:%zu \n", incLowAck);
                     printf("\n\nReached INITCLOSED!");
                 }
                 /*
@@ -440,11 +447,12 @@ int main(void)
                     printPackage(inputBuf);
 
                     //If the package contains data!
-                    if(viewPackage(inputBuf) == 4 && inputBuf.seq == incLowAck)
+                    if(viewPackage(inputBuf) == 4 && inputBuf.ack == incLowAck)
                     {
                         emptyPackage(&outputBuf);
                         outputBuf.seq = (incLowAck++);
                         outputBuf.ack = inputBuf.seq;
+                        checksumChecker(outputBuf);
                         //If send fails (returns -1) terminate else move on.
                         if (sendto(sock, &outputBuf, sizeof(Package), 0, (struct sockaddr*) &serverAddr, slen) == -1)
                         {
@@ -514,7 +522,7 @@ int main(void)
 
 
                     //If the package contains data!
-                    if (viewPackage(inputBuf) == 4 && inputBuf.seq == incLowAck - 1) {
+                    if (viewPackage(inputBuf) == 4 && inputBuf.ack == incLowAck - 1) {
                         //If send fails (returns -1) terminate else move on.
                         if (sendto(sock, &outputBuf, sizeof(Package), 0, (struct sockaddr *) &serverAddr, slen) == -1) {
                             die("sendto()");
