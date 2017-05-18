@@ -3,6 +3,7 @@
 */
 
 #include "list.h"
+#include "Generic.h"
 
 #define SERVER "127.0.0.1" // use gethostbyname // getaddrinfo
 #define PORT 8888   //The port on which to send data
@@ -216,7 +217,6 @@ int main(void)
                         // Errortracing code
                         printf("\n-=Output package=-");
                         printPackage(outputBuf);
-                        printPackage(outputBuf);
                         printf("incLowAck:%zu \n", incLowAck);
                     }
                     else
@@ -289,7 +289,6 @@ int main(void)
                         // Errortracing code
                         printf("\n-=Output package=-");
                         printPackage(outputBuf);
-                        printPackage(outputBuf);
                         printf("incLowAck:%zu \n", incLowAck);
                         freeWin--;
                     }
@@ -322,16 +321,16 @@ int main(void)
                         if(viewPackage(inputBuf) == 2)
                         {
                             // Oldpack! Discard!
-                            if(incLowAck < inputBuf.ack)
+                            if(incLowAck <= inputBuf.ack)
                             {
-                                if(incLowAck + WINDOWSIZE-1 <= inputBuf.ack)// Should not happen!
+                                if(incLowAck + WINDOWSIZE-1 < inputBuf.ack)// Should not happen!
                                 {
                                     printf("\nDebug: Ack exceed sent seq!");
                                     getchar();
                                     exit(1);
                                 }
 
-                                while(incLowAck <= inputBuf.ack)
+                                while(list.head->data.seq <= inputBuf.ack)
                                 {
                                     removeFirst(&list);
                                     if (endFlag == false)
@@ -371,7 +370,6 @@ int main(void)
                                     die("sendto()");
                                 }
                                 printf("\nResending Window!\n-=Output package=-");
-                                printPackage(outputBuf);
                                 printPackage(outputBuf);
                                 printf("incLowAck:%zu \n", incLowAck);
 
