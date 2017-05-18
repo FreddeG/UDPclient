@@ -452,7 +452,11 @@ int main(void)
                     if(viewPackage(inputBuf) == 4 && inputBuf.ack == incMaxAck)
                     {
                         emptyPackage(&outputBuf);
+                        outputBuf.fin = true;
+                        incMaxAck++;
+                        outputBuf.seq = incMaxAck;
                         outputBuf.ack = inputBuf.seq;
+                        outputBuf.checkSum = checksum(outputBuf);
                         //If send fails (returns -1) terminate else move on.
                         if (sendto(sock, &outputBuf, sizeof(Package), 0, (struct sockaddr*) &serverAddr, slen) == -1)
                         {
