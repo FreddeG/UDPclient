@@ -216,7 +216,6 @@ int main(void)
                         // Errortracing code
                         printf("\n-=Output package=-");
                         printPackage(outputBuf);
-                        printPackage(outputBuf);
                         printf("incLowAck:%zu \n", incLowAck);
                     }
                     else
@@ -288,7 +287,6 @@ int main(void)
 
                         // Errortracing code
                         printf("\n-=Output package=-");
-                        printPackage(outputBuf);
                         printPackage(outputBuf);
                         printf("incLowAck:%zu \n", incLowAck);
                         freeWin--;
@@ -371,7 +369,6 @@ int main(void)
                                     die("sendto()");
                                 }
                                 printf("\nResending Window!\n-=Output package=-");
-                                printPackage(outputBuf);
                                 printPackage(outputBuf);
                                 printf("incLowAck:%zu \n", incLowAck);
 
