@@ -32,7 +32,7 @@ int main(void)
     FILE *fp = NULL;
     uint16_t freeWin = WINDOWSIZE;
     bool endFlag = false;
-    uint64_t incLowAck = 0;
+    uint64_t incMaxAck = 0;
 
     List list;
     list.head = NULL;
@@ -67,8 +67,8 @@ int main(void)
             case INITCONNECT:
             {
                 emptyPackage(&outputBuf);
-                incLowAck = initSEQ(); // creates SEQ from time(NULL)
-                outputBuf.seq = incLowAck;
+                incMaxAck = initSEQ(); // creates SEQ from time(NULL)
+                outputBuf.seq = incMaxAck;
                 outputBuf.syn = true;
                 outputBuf.checkSum = checksum(outputBuf);
 
@@ -82,7 +82,7 @@ int main(void)
                 printf("\n-=Output package=-");
                 printPackage(outputBuf);
                 printPackage(outputBuf);
-                printf("incLowAck:%zu \n", incLowAck);
+                printf("incLowAck:%zu \n", incMaxAck);
 
                 currentState = WAITINITCONNECT;
 
@@ -115,11 +115,11 @@ int main(void)
                     printPackage(inputBuf);
 
                     // If the pacage is of right type and has the expected ack move on!
-                    if((viewPackage(inputBuf) == 2) && (inputBuf.ack == incLowAck)) // 2
+                    if((viewPackage(inputBuf) == 2) && (inputBuf.ack == incMaxAck)) // 2
                     {
                         emptyPackage(&outputBuf);
-                        incLowAck = inputBuf.ack + 1;
-                        outputBuf.seq = incLowAck;
+                        incMaxAck = inputBuf.ack + 1;
+                        outputBuf.seq = incMaxAck;
                         outputBuf.ack = inputBuf.seq;
                         checksum(outputBuf);
 
@@ -132,7 +132,7 @@ int main(void)
                         printf("\n-=Output package=-");
                         printPackage(outputBuf);
                         printPackage(outputBuf);
-                        printf("incLowAck:%zu \n", incLowAck);
+                        printf("incLowAck:%zu \n", incMaxAck);
 
                         currentState = WAITINGCONFIRMCONNECT;
                     }
@@ -158,7 +158,7 @@ int main(void)
                         printf("\n-=Output package=-");
                         printPackage(outputBuf);
                         printPackage(outputBuf);
-                        printf("incLowAck:%zu \n", incLowAck);
+                        printf("incLowAck:%zu \n", incMaxAck);
                     }
                     //Host unresponsive during the establish connection phase. Abort?
                     else
@@ -206,7 +206,7 @@ int main(void)
 
 
                     // If we get a resent syn+ack, resend the ack.
-                    if((viewPackage(inputBuf)) == 2 && ((incLowAck-1) == inputBuf.ack)) // 2
+                    if((viewPackage(inputBuf)) == 2 && ((incMaxAck-1) == inputBuf.ack)) // 2
                     {
                         //if sendto fails (return -1) terminate
                         if (sendto(sock, &outputBuf, sizeof(Package), 0, (struct sockaddr*) &serverAddr, slen) == -1)
@@ -217,7 +217,7 @@ int main(void)
                         // Errortracing code
                         printf("\n-=Output package=-");
                         printPackage(outputBuf);
-                        printf("incLowAck:%zu \n", incLowAck);
+                        printf("incLowAck:%zu \n", incMaxAck);
                     }
                     else
                     {
@@ -229,9 +229,11 @@ int main(void)
                 }
                 else // SUCCSESS! Open the filepointer we want to transmit.
                 {
-                    currentState = CONNECTED;
                     count = 0;
+
+                    currentState = CONNECTED;
                     printf("\n REACHED CONNECTED!");
+
                     if(fp == NULL)
                     {
                         fp = fopen ("file.txt", "r");
@@ -262,14 +264,15 @@ int main(void)
                         //If this is the start of the transmission, set SEQ with lowIncAck (from handshake).
                         if((list.head == NULL))
                         {
-                            outputBuf.seq = incLowAck + 1;
+                            incMaxAck++;
+                            outputBuf.seq = incMaxAck;
                         }
                         //This is not the first time we send data: continue from last seq.
                         else
                         {
                             Node* last = retrieveLastNode(list);
                             outputBuf.seq = last->data.seq+1;
-                            incLowAck = list.head->data.seq;
+                            incMaxAck++;
                         }
 
                         outputBuf.ack = inputBuf.seq;
@@ -289,7 +292,7 @@ int main(void)
                         // Errortracing code
                         printf("\n-=Output package=-");
                         printPackage(outputBuf);
-                        printf("incLowAck:%zu \n", incLowAck);
+                        printf("incLowAck:%zu \n", incMaxAck);
                         freeWin--;
                     }
                     else //We have reached the last package. Time to prepare shutdown.
@@ -321,9 +324,9 @@ int main(void)
                         if(viewPackage(inputBuf) == 2)
                         {
                             // Oldpack! Discard!
-                            if(incLowAck <= inputBuf.ack)
+                            if(list.head->data.seq <= inputBuf.ack)
                             {
-                                if(incLowAck + WINDOWSIZE-1 < inputBuf.ack)// Should not happen!
+                                if(list.head->data.seq + WINDOWSIZE-1 < inputBuf.ack)// Should not happen!
                                 {
                                     printf("\nDebug: Ack exceed sent seq!");
                                     getchar();
@@ -371,7 +374,7 @@ int main(void)
                                 }
                                 printf("\nResending Window!\n-=Output package=-");
                                 printPackage(outputBuf);
-                                printf("incLowAck:%zu \n", incLowAck);
+                                printf("incLowAck:%zu \n", incMaxAck);
 
                             }
                         }
@@ -396,10 +399,11 @@ int main(void)
                 {
                     count = 0;
                     emptyPackage(&outputBuf);
-                    outputBuf.seq = (incLowAck++);
                     outputBuf.fin = true;
+                    incMaxAck++;
+                    outputBuf.seq = incMaxAck;
                     outputBuf.ack = inputBuf.seq;
-                    checksum(outputBuf);
+                    outputBuf.checkSum = checksum(outputBuf);
 
                     //If send fails (returns -1) terminate else move on.
                     if (sendto(sock, &outputBuf, sizeof(Package), 0, (struct sockaddr*) &serverAddr, slen) == -1)
@@ -412,7 +416,7 @@ int main(void)
                     //Errortracing Code!
                     printf("-=SENDING FIN!=-");
                     printPackage(outputBuf);
-                    printf("incLowAck:%zu \n", incLowAck);
+                    printf("incLowAck:%zu \n", incMaxAck);
                     printf("\n\nReached INITCLOSED!");
                 }
                 /*
@@ -445,12 +449,10 @@ int main(void)
                     printPackage(inputBuf);
 
                     //If the package contains data!
-                    if(viewPackage(inputBuf) == 4 && inputBuf.ack == incLowAck)
+                    if(viewPackage(inputBuf) == 4 && inputBuf.ack == incMaxAck)
                     {
                         emptyPackage(&outputBuf);
-                        outputBuf.seq = (incLowAck++);
                         outputBuf.ack = inputBuf.seq;
-                        checksumChecker(outputBuf);
                         //If send fails (returns -1) terminate else move on.
                         if (sendto(sock, &outputBuf, sizeof(Package), 0, (struct sockaddr*) &serverAddr, slen) == -1)
                         {
@@ -520,7 +522,7 @@ int main(void)
 
 
                     //If the package contains data!
-                    if (viewPackage(inputBuf) == 4 && inputBuf.ack == incLowAck - 1) {
+                    if (viewPackage(inputBuf) == 4 && inputBuf.ack == incMaxAck - 1) {
                         //If send fails (returns -1) terminate else move on.
                         if (sendto(sock, &outputBuf, sizeof(Package), 0, (struct sockaddr *) &serverAddr, slen) == -1) {
                             die("sendto()");
