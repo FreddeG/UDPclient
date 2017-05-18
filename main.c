@@ -3,8 +3,6 @@
 */
 
 #include "list.h"
-#include "Generic.h"
-
 
 #define SERVER "127.0.0.1" // use gethostbyname // getaddrinfo
 #define PORT 8888   //The port on which to send data
@@ -17,26 +15,14 @@
 #define CLOSED 6
 #define WINDOWSIZE 3
 
-/*
-typedef struct {
-
-    bool fin;
-    bool reset;
-    bool syn;
-    uint64_t seq;
-    uint64_t ack;
-    uint16_t timeStamp;
-    char data;
-    uint64_t checkSum;
-} Package;
-*/
 
 int main(void)
 {
 
 
     struct sockaddr_in serverAddr;
-    int sock, slen = sizeof(serverAddr);
+    int sock;
+    socklen_t slen = sizeof(serverAddr);
     uint8_t count = 0;
     int currentState = 0;
     // char buf[BUFLEN];
@@ -52,10 +38,6 @@ int main(void)
 
     fd_set activeFdSet, readFdSet;
     struct timeval timeout_t;
-
-    //strcpy(buf.data, 'a');
-    //printf("\n entered data %c \n" , outputBuf.data);
-    // char message[BUFLEN] = "test";
 
     if ( (sock=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
     {
@@ -331,24 +313,25 @@ int main(void)
                         printf("\n-=Input package=-");
                         printPackage(inputBuf);
 
-                        //If the package contains data!
-                        if(viewPackage(inputBuf) == 3)
+                        //If the package contains ack+seq!
+                        if(viewPackage(inputBuf) == 2)
                         {
                             // Oldpack! Discard!
-                            if(list.head->data.seq < inputBuf.ack)
+                            if(incLowAck < inputBuf.ack)
                             {
-                                if(list.head->data.seq + WINDOWSIZE-1 <= inputBuf.ack)// Should not happen!
+                                if(incLowAck + WINDOWSIZE-1 <= inputBuf.ack)// Should not happen!
                                 {
-                                    printf("\nDebug: Ack exeede sent seq!");
+                                    printf("\nDebug: Ack exceed sent seq!");
                                     getchar();
                                     exit(1);
                                 }
 
-                                while(list.head->data.seq <= inputBuf.ack)
+                                while(incLowAck <= inputBuf.ack)
                                 {
                                     removeFirst(&list);
                                     if (endFlag == false)
                                     {
+                                        printf("\nMOVING WIN!");
                                         freeWin++;
                                     }
                                     if(list.head == NULL)
@@ -361,6 +344,10 @@ int main(void)
                             {
                                 printf("\nOldpack! Discard!\n");
                             }
+                        }
+                        else
+                        {
+                            printf("\nWrong Type or Broken package!\n");
                         }
                     }
                     else
@@ -423,9 +410,10 @@ int main(void)
                     printf("\nincLowAck:%zu ", incLowAck);
                     printf("\n\nReached INITCLOSED!");
                 }
-
+                /*
                 printf("\nNumber of nodes: %d", numberOfNodes(&list));
                 printList(&list);
+                */
                 break;
             }
 
@@ -454,7 +442,7 @@ int main(void)
                     //If the package contains data!
                     if(viewPackage(inputBuf) == 4 && inputBuf.seq == incLowAck)
                     {
-                        emptyPackage(outputBuf);
+                        emptyPackage(&outputBuf);
                         outputBuf.seq = (incLowAck++);
                         outputBuf.ack = inputBuf.seq;
                         //If send fails (returns -1) terminate else move on.
