@@ -5,16 +5,7 @@
 #include "list.h"
 #include "Generic.h"
 
-#define SERVER "127.0.0.1" // use gethostbyname // getaddrinfo
-#define PORT 8888   //The port on which to send data
-#define INITCONNECT 0
-#define WAITINITCONNECT 1
-#define WAITINGCONFIRMCONNECT 2
-#define CONNECTED 3
-#define INITCLOSE 4
-#define WAITINGCLOSE 5
-#define CLOSED 6
-#define WINDOWSIZE 3
+
 
 
 int main(void)
@@ -30,12 +21,16 @@ int main(void)
     char charFromFile;
     Package outputBuf, inputBuf;
     FILE *fp = NULL;
-    uint16_t freeWin = WINDOWSIZE;
+    uint16_t freeWin = 0;
+    uint64_t winSize = 0;
     bool endFlag = false;
     uint64_t incMaxAck = 0;
 
-    List list;
+    List list, jailList;
+    jailList.head = NULL;
     list.head = NULL;
+
+    srand(time(0));
 
     fd_set activeFdSet, readFdSet;
     struct timeval timeout_t;
@@ -81,7 +76,6 @@ int main(void)
                 // Errortracing code
                 printf("\n-=Output package=-");
                 printPackage(outputBuf);
-                printPackage(outputBuf);
                 printf("incLowAck:%zu \n", incMaxAck);
 
                 currentState = WAITINITCONNECT;
@@ -117,6 +111,11 @@ int main(void)
                     // If the pacage is of right type and has the expected ack move on!
                     if((viewPackage(inputBuf) == 2) && (inputBuf.ack == incMaxAck)) // 2
                     {
+                        if((winSize = inputBuf.winSize) <=1)
+                        {
+                            exit(EXIT_FAILURE);
+                        }
+                        freeWin = winSize;
                         emptyPackage(&outputBuf);
                         incMaxAck = inputBuf.ack + 1;
                         outputBuf.seq = incMaxAck;
@@ -130,7 +129,6 @@ int main(void)
 
                         // Errortracing code
                         printf("\n-=Output package=-");
-                        printPackage(outputBuf);
                         printPackage(outputBuf);
                         printf("incLowAck:%zu \n", incMaxAck);
 
@@ -156,7 +154,6 @@ int main(void)
 
                         // Errortracing code
                         printf("\n-=Output package=-");
-                        printPackage(outputBuf);
                         printPackage(outputBuf);
                         printf("incLowAck:%zu \n", incMaxAck);
                     }
@@ -326,7 +323,7 @@ int main(void)
                             // Oldpack! Discard!
                             if(list.head->data.seq <= inputBuf.ack)
                             {
-                                if(list.head->data.seq + WINDOWSIZE-1 < inputBuf.ack)// Should not happen!
+                                if(list.head->data.seq + winSize -1 < inputBuf.ack)// Should not happen!
                                 {
                                     printf("\nDebug: Ack exceed sent seq!");
                                     getchar();

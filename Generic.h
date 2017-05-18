@@ -14,6 +14,16 @@
 #include <unistd.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <time.h>
+#define SERVER "127.0.0.1" // use gethostbyname // getaddrinfo
+#define PORT 8888   //The port on which to send data
+#define INITCONNECT 0
+#define WAITINITCONNECT 1
+#define WAITINGCONFIRMCONNECT 2
+#define CONNECTED 3
+#define INITCLOSE 4
+#define WAITINGCLOSE 5
+#define CLOSED 6
 
 typedef struct {
 
@@ -22,7 +32,7 @@ typedef struct {
     bool syn;
     uint64_t seq;
     uint64_t ack;
-    uint16_t timeStamp;
+    uint16_t winSize;
     char data;
     uint64_t checkSum;
 } Package;

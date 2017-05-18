@@ -167,6 +167,21 @@ void printList(List *mylist)
             iterator = iterator->Next;
         } while (iterator != NULL);
     }
+}
 
+bool jail(List jailList, Package pack)
+{
+    //gen an error with some probability
+    //Chose with error randomly
 
+    //If error return true
+    //else retrun false
+    return false;
+}
+
+Package releseFromJail(List* jailList)
+{
+    Package temp;
+    //release a random package and remove it from this list
+    return temp;
 }
