@@ -667,37 +667,6 @@ int main(void)
                 break;
             }
         }
-
     }
-
     return 0;
 }
-
-
-
-/*
-    while(1)
-    {
-
-        //send the message
-        if (sendto(sock, &outputBuf, sizeof(outputBuf) , 0 , (struct sockaddr *) &serverAddr, slen)==-1)
-        {
-            die("sendto()"); // fails
-        }
-
-        //receive a reply and print it
-        //clear the buffer by filling null, it might have previously received data
-        memset(&outputBuf,'\0', BUFLEN);
-        //try to receive some data, this is a blocking call
-        if (recvfrom(sock, &outputBuf, BUFLEN, 0, (struct sockaddr *) &serverAddr, &slen) == -1)
-        {
-            die("recvfrom()"); //fails
-        }
-
-       // puts(buf);
-        printf("Data: %u %u %s\n" , outputBuf.seq, outputBuf.ack, outputBuf.data);
-    }
-
-    close(sock);
-
-}*/
