@@ -56,6 +56,7 @@ void die(char *s)
     exit(1);
 }
 
+//Initiates the package-struct.
 void emptyPackage(Package *packToEmpty)
 {
     packToEmpty->fin = false;
@@ -69,6 +70,7 @@ void emptyPackage(Package *packToEmpty)
 
 }
 
+//Prints the package struct
 void printPackage(Package pack)
 {
     printf("\n fin: %d", pack.fin);
@@ -80,7 +82,7 @@ void printPackage(Package pack)
     printf("\n checksum: %zu\n", pack.checkSum);
 }
 
-
+//This function classifies the package type. Used to determine if resend or move on.
 uint8_t viewPackage(Package pack)
 {
 
@@ -116,7 +118,7 @@ uint8_t viewPackage(Package pack)
 
 }
 
-
+// Initiates a seq number from clocktime milliseconds.
 uint64_t initSEQ(void)
 {
     struct timeval te;
@@ -126,8 +128,8 @@ uint64_t initSEQ(void)
     return milliseconds;
 }
 
-
-uint64_t checksum (Package pack)
+//Calculates a simple checksum for a package and returns the value.
+uint64_t checksum(Package pack)
 {
     unsigned char *ptr=(unsigned char *)&pack;
     int sizestruct = sizeof(Package);
@@ -141,6 +143,8 @@ uint64_t checksum (Package pack)
     return chksm;
 }
 
+
+//Checks the checksum for a package, returns true if all good.
 bool checksumChecker(Package pack)
 {
     uint64_t stateVal = pack.checkSum;
