@@ -2,15 +2,6 @@
 #include "Generic.h"
 
 
-/* Skriv era funktionsimplementationer för interfacet till er länkade lista här 
-   Det går också bra att skriva statiska hjälpfunktioner i denna fil            */
-
-
-
-
-/* Skriv era funktionsimplementationer för interfacet till er länkade lista här
-Det går också bra att skriva statiska hjälpfunktioner i denna fil            */
-
 List *createList()
 {
     List *newList = (List*)malloc(sizeof(List));
@@ -122,21 +113,6 @@ int numberOfNodes(List *list)
     }
     return x;
 }
-/* not fixed
-int dataSearch(List *list, Package x)
-{
-    Node *current = list->head;
-    int flag = 0;
-
-    while (current != NULL)
-    {
-        if (current->data == x) flag = 1;
-        current = current->Next;
-    }
-
-    return flag;
-}
-*/
 
 int IsListEmpty(List *list)
 {
@@ -171,29 +147,36 @@ void printList(List *mylist)
 }
 
 
-
+// This is the semiList-function that we use for sending packages with errors packet lost (eg goes to jail),
+// checksum corrupted. The jailList is used for storing all packages that were have been jailed so that we can simulate
+// old and unordered packages.
+// The package becomes a local copy of outputbuf (from main) and genError is a flag that turns the error generating code off.
 void jail(List *jailList, Package pack, int sock, struct sockaddr_in serverAddr, bool genError)
 {
+    //create the trigger value
     uint8_t trigger = rand() % 100;
     printf("\n Trigger is:%uz", trigger);
     if(genError == false)
     {
         trigger = 0;
     }
+    //compare trigger with the treshold value in ERRORPROBABILITY
     if(trigger < ERRORPROBABILITY)
     {
+        //Pick a errortype at random.
         uint8_t errorType = rand() % 2;
 
         //destroy checksum
         if (errorType == 0)
         {
-            printf("\n!!Destroying checksum!!\n");
             addNodeLast(jailList, pack);
             pack.checkSum = pack.checkSum + 1;
             if (sendto(sock, &pack, sizeof(Package), 0, (struct sockaddr*) &serverAddr, sizeof(serverAddr)) == -1)
             {
                 die("sendto()");
             }
+            printf("\n!!Destroying checksum!!\n");
+            printPackage(pack);
         }
         else if (errorType == 1)
         {
@@ -208,6 +191,7 @@ void jail(List *jailList, Package pack, int sock, struct sockaddr_in serverAddr,
     }
     else
     {
+        //If no error is generated (trigger to high) we send the package as usual.
         if (sendto(sock, &pack, sizeof(Package), 0, (struct sockaddr*) &serverAddr, sizeof(serverAddr)) == -1)
         {
             die("sendto()");
@@ -217,14 +201,7 @@ void jail(List *jailList, Package pack, int sock, struct sockaddr_in serverAddr,
     }
 }
 
-/*
-Node *ptr = freeFromJail(list);
-if(ptr != NULL)
-{
-//send
-free(ptr);
-}
-*/
+// Frees packages from jail. This simulates old packages and dubbel sends and packages out of order.
 Node* freeFromJail(List*list)
 {
     Node *curr = list->head;
@@ -232,26 +209,27 @@ Node* freeFromJail(List*list)
     int numNodes = numberOfNodes(list);
 
     int count = 0;
-    //somerandom numbbetween0andlength - 1
 
     if(numNodes == 0)
     {
         return NULL;
     }
-    int targetNode = rand() % numberOfNodes(list); // must be at least 2 elements in list
+    //Random node between 0 and number of nodes - 1.
+    int targetNode = rand() % numberOfNodes(list); // reached here: at least 2 elements in list
     if(targetNode == 0)
     {
         list->head = curr->Next;
         return curr;
     }
 
-    while (count < targetNode)  // vi har 2 nodes, targetnode = 1,
+    while (count < targetNode)  // if 2 nodes, targetnode = 1 is the last node,
     {
         prev = curr;
         curr = curr->Next;
         count++;
     }
 
+    //relink the list and return the lose node.
     prev->Next = curr->Next;
     return curr;
 }

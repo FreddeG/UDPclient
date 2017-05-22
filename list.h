@@ -26,14 +26,6 @@ typedef struct node
     struct node *Next;
 } Node;
 
-/* 2. Typdefinition **************************************/
-/* Ersätt ordet 'int' nedan med den typ ni valt          */
-/* T.ex:											     */
-/* typedef struct node* List;                            */
-/* eller											     */
-/* typedef struct list List;                             */
-/* *******************************************************/
-
 
 typedef struct list
 {
@@ -46,14 +38,6 @@ typedef struct iter
     Node *previous;
 }Iter;
 
-/* 3. Interface ****************************************************/
-/* Här lägger ni era funktionsdeklarationer för er länkade lista   */
-/* Läs labbinstruktioner för vilka som ska vara med                */
-/*																   */
-/* OBS:															   */
-/* ALLA funktioner i interfacet måste returnera eller ta ett       */
-/* argument av typen List eller List*                              */
-/* *****************************************************************/
 List *listCreate(void); // does not compile?
 void removeList(List* myList);
 void removeFirst(List* myList);
@@ -66,9 +50,7 @@ int IsListEmpty(List *list);
 void printList(List *mylist);
 void jail(List *jailList, Package pack, int sock, struct sockaddr_in serverAddr, bool genError);
 Node* freeFromJail(List*list);
-
-
-        void printPackage(Package pack);
+void printPackage(Package pack);
 
 
 
