@@ -11,45 +11,46 @@
 int main(void)
 {
 
-
+    //UDP Stuff
     struct sockaddr_in serverAddr;
     int sock;
-    socklen_t slen = sizeof(serverAddr);
-    uint8_t count = 0;
     int currentState = 0;
-    // char buf[BUFLEN];
     char charFromFile;
+    socklen_t slen = sizeof(serverAddr);
+    fd_set activeFdSet, readFdSet;
+    struct timeval timeout_t;
+
+    //Variables for package and List!
     Package outputBuf, inputBuf;
-    FILE *fp = NULL;
-    uint16_t freeWin = 0;
-    uint16_t winSize = 0;
-    bool endFlag = false;
-    uint64_t incMaxAck = 0;
-    bool genError = true;
-
-    uint16_t  trigger = 0;
-
     List list, jailList;
     jailList.head = NULL;
     list.head = NULL;
 
+    //Filepointer for packet data
+    FILE *fp = NULL;
+
+    //Variables for sliding window and error prob.
+    uint8_t count = 0;
+    uint16_t freeWin = 0;
+    uint16_t winSize = 0;
+    uint16_t trigger = 0;
+    uint16_t packType = 0;
+    uint64_t incMaxAck = 0;
+    bool endFlag = false;
+    bool genError = true;
+
+    //Initiate random Seed
     srand(time(0));
 
-    fd_set activeFdSet, readFdSet;
-    struct timeval timeout_t;
-
+    //Initiate socket.
     if ( (sock=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
     {
         die("socket");
     }
-
     memset((char *) &serverAddr, 0, sizeof(serverAddr)); // just sets shit to empty
-
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(PORT);
 
-    // struct sockaddr test;
-// use gethostbyname to set sin_addr
 
     if (inet_aton(SERVER , &serverAddr.sin_addr) == 0)
     {
@@ -60,37 +61,33 @@ int main(void)
     FD_ZERO(&activeFdSet); // initializes an empty FDset
     FD_SET(sock, &activeFdSet); // puts socket in the set, activeFDset currently only contains this socket.
 
+    emptyPackage(&outputBuf);
+
     while(1) {
         switch (currentState) {
             case INITCONNECT:
             {
+                //Create the package!
                 emptyPackage(&outputBuf);
                 incMaxAck = initSEQ(); // creates SEQ from time(NULL)
                 outputBuf.seq = incMaxAck;
                 outputBuf.syn = true;
                 outputBuf.checkSum = checksum(outputBuf);
 
+                //Send it? Jail might generate an error if flag errorGen is set to True
                 jail(&jailList, outputBuf, sock, serverAddr, genError);
-/*
-
-                if (sendto(sock, &outputBuf, sizeof(Package), 0, (struct sockaddr *) &serverAddr, slen) == -1) {
-                    perror("sendto()");
-                    exit(1);
-                    // die("sendto()"); // fails
-                }
-*/
 
                 // Errortracing code
-                printf("\n-=Output package=-");
+                printf("\n-=First SYN=-");
                 printPackage(outputBuf);
                 printf("incLowAck:%zu \n", incMaxAck);
 
+                //Change State!
                 currentState = WAITINITCONNECT;
 
+                //Release from jail? With some probablility, release a random package from the jailList!
                 trigger = rand() %100;
-
-
-                if(trigger > RELEASEPROBABILITY)// jail release probablity
+                if(trigger > RELEASEPROBABILITY)
                 {
                     Node *ptr = freeFromJail(&jailList);
                     if(ptr != NULL)
@@ -100,26 +97,26 @@ int main(void)
                             exit(1);
                             // die("sendto()"); // fails
                         }
+                        printf("\n-=JAIL RELEASE=-");
+                        printPackage(ptr->data);
                         free(ptr);
                         ptr = NULL;
                     }
                 }
-
-
-
-
                 break;
-            }
+            } //End of INITCONNECT LOOP
 
 
             case WAITINITCONNECT:
             {
+                //Initiate the Sets!
                 readFdSet = activeFdSet;
-                // lägg in time envl
+
+                //Set Timeout values for this set
                 timeout_t.tv_sec = 10;
                 timeout_t.tv_usec = 0;
 
-
+                //Listen for incoming packages!
                 if (select(FD_SETSIZE, &readFdSet, NULL, NULL, &timeout_t) < 0) { // blocking, waits until one the FD is set to ready, will keep the ready ones in readFdSet
                     perror("Select failed\n");
                     exit(EXIT_FAILURE);
@@ -135,33 +132,35 @@ int main(void)
                     // Errortracing code
                     printf("\n-=Input package=-");
                     printPackage(inputBuf);
+                    packType = viewPackage(inputBuf);
 
-                    // If the pacage is of right type and has the expected ack move on!
-                    if((viewPackage(inputBuf) == 2) && (inputBuf.ack == incMaxAck)) // 2
+                    // If the package is of right type and has the expected ack CHANGE STATE!
+                    if((packType == 2) && (inputBuf.ack == incMaxAck)) // 2
                     {
+                        //Error checking code, window cant be 2 small.
                         if((winSize = inputBuf.winSize) <=1)
                         {
                             exit(EXIT_FAILURE);
                         }
+
+                        //Initiate Window!
                         freeWin = winSize;
+
+                        //Create package!
                         emptyPackage(&outputBuf);
                         incMaxAck = inputBuf.ack + 1;
                         outputBuf.seq = incMaxAck;
                         outputBuf.ack = inputBuf.seq;
                         outputBuf.checkSum = checksum(outputBuf);
 
+                        //Send it? Jail might generate an error if flag errorGen is set to True
                         jail(&jailList, outputBuf, sock, serverAddr, genError);
-                        /*
-                        if (sendto(sock, &outputBuf, sizeof(Package), 0, (struct sockaddr*) &serverAddr, slen) == -1)
-                        {
-                            die("sendto()");
-                        }*/
 
                         // Errortracing code
-                        printf("\n-=Output package=-");
-                        printPackage(outputBuf);
                         printf("incLowAck:%zu \n", incMaxAck);
 
+                        //Change state and reset count!
+                        count = 0;
                         currentState = WAITINGCONFIRMCONNECT;
                     }
                     else
@@ -172,24 +171,18 @@ int main(void)
                 else
                 {
                     // if timeout, resend up to 3 times
-                    if(count<3)
+                    if(count < 3)
                     {
                         count++;
-
                         printf("\n timeout occured!");
+
+                        //Send it? Jail might generate an error if flag errorGen is set to True
                         jail(&jailList, outputBuf, sock, serverAddr, genError);
-                        /*
-                        if (sendto(sock, &outputBuf, sizeof(Package), 0, (struct sockaddr *) &serverAddr, slen) == -1)
-                        {
-                            die("sendto()");
-                        }*/
 
                         // Errortracing code
-                        printf("\n-=Output package=-");
-                        printPackage(outputBuf);
                         printf("incLowAck:%zu \n", incMaxAck);
                     }
-                    //Host unresponsive during the establish connection phase. Abort?
+                    //Host unresponsive during the establish connection phase. Abort or restart in this state?
                     else
                     {
                         uint contFlag = 0;
@@ -207,11 +200,8 @@ int main(void)
                     }
                 }
 
-
-
+                //Release from jail? With some probablility, release a random package from the jailList!
                 trigger = rand() %100;
-
-
                 if(trigger > RELEASEPROBABILITY)// jail release probablity
                 {
                     Node *ptr = freeFromJail(&jailList);
@@ -222,19 +212,20 @@ int main(void)
                             exit(1);
                             // die("sendto()"); // fails
                         }
+                        printf("\n-=JAIL RELEASE=-");
+                        printPackage(ptr->data);
                         free(ptr);
                         ptr = NULL;
                     }
                 }
-
                 break;
-            }
+            }//End of WAITINITCONNECT LOOP
 
 
             case WAITINGCONFIRMCONNECT:
             {
                 readFdSet = activeFdSet;
-                timeout_t.tv_sec = 5; // needs bigger timeout than server
+                timeout_t.tv_sec = 20; // needs bigger timeout than server
                 timeout_t.tv_usec = 0;
 
                 // Calls select with a time counter. if we dont "recieve" during this time. Assume connection success.
@@ -254,21 +245,14 @@ int main(void)
                     printf("\n-=Input package=-");
                     printPackage(inputBuf);
 
-
                     // If we get a resent syn+ack, resend the ack.
-                    if((viewPackage(inputBuf)) == 2 && ((incMaxAck-1) == inputBuf.ack)) // 2
+                    packType = viewPackage(inputBuf);
+                    if(packType == 2 && ((incMaxAck-1) == inputBuf.ack)) // 2
                     {
+                        //Send it? Jail might generate an error if flag errorGen is set to True
                         jail(&jailList, outputBuf, sock, serverAddr, genError);
-                        /*
-                        //if sendto fails (return -1) terminate
-                        if (sendto(sock, &outputBuf, sizeof(Package), 0, (struct sockaddr*) &serverAddr, slen) == -1)
-                        {
-                            die("sendto()");
-                        }*/
 
                         // Errortracing code
-                        printf("\n-=Output package=-");
-                        printPackage(outputBuf);
                         printf("incLowAck:%zu \n", incMaxAck);
                     }
                     else
@@ -315,6 +299,8 @@ int main(void)
                             exit(1);
                             // die("sendto()"); // fails
                         }
+                        printf("\n-=JAIL RELEASE=-");
+                        printPackage(ptr->data);
                         free(ptr);
                         ptr = NULL;
                     }
@@ -365,8 +351,6 @@ int main(void)
                         }
 */
                         // Errortracing code
-                        printf("\n-=Output package=-");
-                        printPackage(outputBuf);
                         printf("incLowAck:%zu \n", incMaxAck);
                         freeWin--;
                     }
@@ -395,8 +379,9 @@ int main(void)
                         printf("\n-=Input package=-");
                         printPackage(inputBuf);
 
+                        packType = viewPackage(inputBuf);
                         //If the package contains ack+seq!
-                        if(viewPackage(inputBuf) == 2)
+                        if(packType== 2)
                         {
                             // Oldpack! Discard!
                             if(list.head->data.seq <= inputBuf.ack)
@@ -445,7 +430,6 @@ int main(void)
                                 current = current->Next;
 
                                 jail(&jailList, outputBuf, sock, serverAddr, genError);
-
                                 /*
                                 if (sendto(sock, &outputBuf, sizeof(Package), 0, (struct sockaddr*) &serverAddr, slen) == -1)
                                 {
@@ -500,16 +484,8 @@ int main(void)
                     printf("incLowAck:%zu \n", incMaxAck);
                     printf("\n\nReached INITCLOSED!");
                 }
-                /*
-                printf("\nNumber of nodes: %d", numberOfNodes(&list));
-                printList(&list);
-                */
-
-
 
                 trigger = rand() %100;
-
-
                 if(trigger > RELEASEPROBABILITY)// jail release probablity
                 {
                     Node *ptr = freeFromJail(&jailList);
@@ -520,6 +496,8 @@ int main(void)
                             exit(1);
                             // die("sendto()"); // fails
                         }
+                        printf("\n-=JAIL RELEASE=-");
+                        printPackage(ptr->data);
                         free(ptr);
                         ptr = NULL;
                     }
@@ -551,8 +529,9 @@ int main(void)
                     printf("\n-=Input package=-");
                     printPackage(inputBuf);
 
+                    packType = viewPackage(inputBuf);
                     //If the package contains data!
-                    if(viewPackage(inputBuf) == 4 && inputBuf.ack == incMaxAck)
+                    if(packType == 4 && inputBuf.ack == incMaxAck)
                     {
                         emptyPackage(&outputBuf);
                         outputBuf.fin = true;
@@ -581,8 +560,9 @@ int main(void)
                 }
                 else
                 {
-                    if(count > 4)
+                    if(count < 4)
                     {
+                        count++;
                         //Resend FIN!
                         //If send fails (returns -1) terminate else move on.
                         jail(&jailList, outputBuf, sock, serverAddr, genError);
@@ -621,6 +601,8 @@ int main(void)
                         exit(1);
                         // die("sendto()"); // fails
                     }
+                    printf("\n-=JAIL RELEASE=-");
+                    printPackage(ptr->data);
                     free(ptr);
                     ptr = NULL;
                 }
@@ -650,9 +632,9 @@ int main(void)
                     printf("\n-=Input package=-");
                     printPackage(inputBuf);
 
-
+                    packType = viewPackage(inputBuf);
                     //If the package contains data!
-                    if (viewPackage(inputBuf) == 4 && inputBuf.ack == incMaxAck - 1) {
+                    if (packType == 4 && inputBuf.ack == incMaxAck - 1) {
                         //If send fails (returns -1) terminate else move on.
                         jail(&jailList, outputBuf, sock, serverAddr, genError);
                         /*
@@ -689,6 +671,8 @@ int main(void)
                             exit(1);
                             // die("sendto()"); // fails
                         }
+                        printf("\n-=JAIL RELEASE=-");
+                        printPackage(ptr->data);
                         free(ptr);
                         ptr = NULL;
                     }
@@ -700,6 +684,7 @@ int main(void)
             case CLOSED:
             {
                 printf("\nWE ARE DONE!");
+                fclose(fp);
                 return 0;
                 break;
             }
@@ -710,6 +695,7 @@ int main(void)
         }
 
     }
+
     return 0;
 }
 
