@@ -63,7 +63,7 @@ void emptyPackage(Package *packToEmpty)
     packToEmpty->syn = false;
     packToEmpty->seq = 0;
     packToEmpty->ack = 0;
-    packToEmpty->timeStamp = 0;
+    packToEmpty->winSize = 0;
     packToEmpty->data = '\0';
     packToEmpty->checkSum = 0;
 
@@ -156,4 +156,5 @@ bool checksumChecker(Package pack)
         return false;
     }
 }
+
 
