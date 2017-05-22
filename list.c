@@ -175,11 +175,12 @@ void printList(List *mylist)
 void jail(List *jailList, Package pack, int sock, struct sockaddr_in serverAddr, bool genError)
 {
     uint8_t trigger = rand() % 100;
+    printf("\n Trigger is:%uz", trigger);
     if(genError == false)
     {
         trigger = 0;
     }
-    if(trigger > ERRORPROBABILITY)
+    if(trigger < ERRORPROBABILITY)
     {
         uint8_t errorType = rand() % 2;
 

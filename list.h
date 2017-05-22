@@ -8,8 +8,8 @@
 
 #include "Generic.h"
 
-#define ERRORPROBABILITY 50
-
+#define ERRORPROBABILITY 100
+#define RELEASEPROBABILITY 50
 
 //typedef int Data;
 
