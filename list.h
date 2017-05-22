@@ -8,6 +8,9 @@
 
 #include "Generic.h"
 
+#define ERRORPROBABILITY 50
+
+
 //typedef int Data;
 
 /* 1. Struct-definitioner ********************************/
@@ -61,10 +64,11 @@ Node* retrieveLastNode(List list);
 int numberOfNodes(List *list);
 int IsListEmpty(List *list);
 void printList(List *mylist);
+void jail(List *jailList, Package pack, int sock, struct sockaddr_in serverAddr, bool genError);
+Node* freeFromJail(List*list);
 
 
-
-void printPackage(Package pack);
+        void printPackage(Package pack);
 
 
 

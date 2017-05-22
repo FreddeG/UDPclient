@@ -22,9 +22,10 @@ int main(void)
     Package outputBuf, inputBuf;
     FILE *fp = NULL;
     uint16_t freeWin = 0;
-    uint64_t winSize = 0;
+    uint16_t winSize = 0;
     bool endFlag = false;
     uint64_t incMaxAck = 0;
+    bool genError = true;
 
     List list, jailList;
     jailList.head = NULL;
@@ -67,11 +68,15 @@ int main(void)
                 outputBuf.syn = true;
                 outputBuf.checkSum = checksum(outputBuf);
 
+                jail(&jailList, outputBuf, sock, serverAddr, genError);
+/*
+
                 if (sendto(sock, &outputBuf, sizeof(Package), 0, (struct sockaddr *) &serverAddr, slen) == -1) {
                     perror("sendto()");
                     exit(1);
                     // die("sendto()"); // fails
                 }
+*/
 
                 // Errortracing code
                 printf("\n-=Output package=-");
@@ -79,6 +84,20 @@ int main(void)
                 printf("incLowAck:%zu \n", incMaxAck);
 
                 currentState = WAITINITCONNECT;
+
+
+                Node *ptr = freeFromJail(&jailList);
+                if(ptr != NULL)
+                {
+                    if (sendto(sock, &ptr->data, sizeof(Package), 0, (struct sockaddr *) &serverAddr, slen) == -1) {
+                        perror("sendto()");
+                        exit(1);
+                        // die("sendto()"); // fails
+                    }
+                    free(ptr);
+                    ptr = NULL;
+                }
+
 
                 break;
             }
@@ -122,10 +141,12 @@ int main(void)
                         outputBuf.ack = inputBuf.seq;
                         checksum(outputBuf);
 
+                        jail(&jailList, outputBuf, sock, serverAddr, genError);
+                        /*
                         if (sendto(sock, &outputBuf, sizeof(Package), 0, (struct sockaddr*) &serverAddr, slen) == -1)
                         {
                             die("sendto()");
-                        }
+                        }*/
 
                         // Errortracing code
                         printf("\n-=Output package=-");
@@ -147,10 +168,12 @@ int main(void)
                         count++;
 
                         printf("\n timeout occured!");
+                        jail(&jailList, outputBuf, sock, serverAddr, genError);
+                        /*
                         if (sendto(sock, &outputBuf, sizeof(Package), 0, (struct sockaddr *) &serverAddr, slen) == -1)
                         {
                             die("sendto()");
-                        }
+                        }*/
 
                         // Errortracing code
                         printf("\n-=Output package=-");
@@ -174,6 +197,22 @@ int main(void)
                         }
                     }
                 }
+
+
+
+                Node *ptr = freeFromJail(&jailList);
+                if(ptr != NULL)
+                {
+                    if (sendto(sock, &ptr->data, sizeof(Package), 0, (struct sockaddr *) &serverAddr, slen) == -1) {
+                        perror("sendto()");
+                        exit(1);
+                        // die("sendto()"); // fails
+                    }
+                    free(ptr);
+                    ptr = NULL;
+                }
+
+
                 break;
             }
 
@@ -205,11 +244,13 @@ int main(void)
                     // If we get a resent syn+ack, resend the ack.
                     if((viewPackage(inputBuf)) == 2 && ((incMaxAck-1) == inputBuf.ack)) // 2
                     {
+                        jail(&jailList, outputBuf, sock, serverAddr, genError);
+                        /*
                         //if sendto fails (return -1) terminate
                         if (sendto(sock, &outputBuf, sizeof(Package), 0, (struct sockaddr*) &serverAddr, slen) == -1)
                         {
                             die("sendto()");
-                        }
+                        }*/
 
                         // Errortracing code
                         printf("\n-=Output package=-");
@@ -244,6 +285,22 @@ int main(void)
                         die("fopen");
                     }
                 }
+
+
+
+                Node *ptr = freeFromJail(&jailList);
+                if(ptr != NULL)
+                {
+                    if (sendto(sock, &ptr->data, sizeof(Package), 0, (struct sockaddr *) &serverAddr, slen) == -1) {
+                        perror("sendto()");
+                        exit(1);
+                        // die("sendto()"); // fails
+                    }
+                    free(ptr);
+                    ptr = NULL;
+                }
+
+
                 break;
             }
 
@@ -280,12 +337,14 @@ int main(void)
                         //Put the item in the "window".
                         addNodeLast(&list, outputBuf);
 
+                        jail(&jailList, outputBuf, sock, serverAddr, genError);
+                        /*
                         //If send fails (returns -1) terminate else move on.
                         if (sendto(sock, &outputBuf, sizeof(Package), 0, (struct sockaddr*) &serverAddr, slen) == -1)
                         {
                             die("sendto()");
                         }
-
+*/
                         // Errortracing code
                         printf("\n-=Output package=-");
                         printPackage(outputBuf);
@@ -365,10 +424,14 @@ int main(void)
                             {
                                 outputBuf = current->data;
                                 current = current->Next;
+
+                                jail(&jailList, outputBuf, sock, serverAddr, genError);
+
+                                /*
                                 if (sendto(sock, &outputBuf, sizeof(Package), 0, (struct sockaddr*) &serverAddr, slen) == -1)
                                 {
                                     die("sendto()");
-                                }
+                                }*/
                                 printf("\nResending Window!\n-=Output package=-");
                                 printPackage(outputBuf);
                                 printf("incLowAck:%zu \n", incMaxAck);
@@ -402,12 +465,14 @@ int main(void)
                     outputBuf.ack = inputBuf.seq;
                     outputBuf.checkSum = checksum(outputBuf);
 
+                    jail(&jailList, outputBuf, sock, serverAddr, genError);
+                    /*
                     //If send fails (returns -1) terminate else move on.
                     if (sendto(sock, &outputBuf, sizeof(Package), 0, (struct sockaddr*) &serverAddr, slen) == -1)
                     {
                         die("sendto()");
                     }
-
+*/
                     currentState = INITCLOSE;
 
                     //Errortracing Code!
@@ -420,6 +485,22 @@ int main(void)
                 printf("\nNumber of nodes: %d", numberOfNodes(&list));
                 printList(&list);
                 */
+
+
+
+                Node *ptr = freeFromJail(&jailList);
+                if(ptr != NULL)
+                {
+                    if (sendto(sock, &ptr->data, sizeof(Package), 0, (struct sockaddr *) &serverAddr, slen) == -1) {
+                        perror("sendto()");
+                        exit(1);
+                        // die("sendto()"); // fails
+                    }
+                    free(ptr);
+                    ptr = NULL;
+                }
+
+
                 break;
             }
 
@@ -454,11 +535,15 @@ int main(void)
                         outputBuf.seq = incMaxAck;
                         outputBuf.ack = inputBuf.seq;
                         outputBuf.checkSum = checksum(outputBuf);
+
+                        jail(&jailList, outputBuf, sock, serverAddr, genError);
+                        /*
                         //If send fails (returns -1) terminate else move on.
                         if (sendto(sock, &outputBuf, sizeof(Package), 0, (struct sockaddr*) &serverAddr, slen) == -1)
                         {
                             die("sendto()");
-                        }
+                        }*/
+
                         printf("-=LAST ACK!=-");
                         printPackage(outputBuf);
 
@@ -475,9 +560,12 @@ int main(void)
                     {
                         //Resend FIN!
                         //If send fails (returns -1) terminate else move on.
+                        jail(&jailList, outputBuf, sock, serverAddr, genError);
+                        /*
                         if (sendto(sock, &outputBuf, sizeof(Package), 0, (struct sockaddr *) &serverAddr, slen) == -1) {
                             die("sendto()");
-                        }
+                        }*/
+
                         printf("-=RESENDING FIN!=-");
                         printPackage(outputBuf);
                     }
@@ -497,6 +585,22 @@ int main(void)
                         }
                     }
                 }
+
+
+
+                Node *ptr = freeFromJail(&jailList);
+                if(ptr != NULL)
+                {
+                    if (sendto(sock, &ptr->data, sizeof(Package), 0, (struct sockaddr *) &serverAddr, slen) == -1) {
+                        perror("sendto()");
+                        exit(1);
+                        // die("sendto()"); // fails
+                    }
+                    free(ptr);
+                    ptr = NULL;
+                }
+
+
                 break;
             }
             case WAITINGCLOSE:
@@ -525,9 +629,12 @@ int main(void)
                     //If the package contains data!
                     if (viewPackage(inputBuf) == 4 && inputBuf.ack == incMaxAck - 1) {
                         //If send fails (returns -1) terminate else move on.
+                        jail(&jailList, outputBuf, sock, serverAddr, genError);
+                        /*
                         if (sendto(sock, &outputBuf, sizeof(Package), 0, (struct sockaddr *) &serverAddr, slen) == -1) {
                             die("sendto()");
                         }
+                        */
                         printf("-=RESEND OF LAST ACK!=-");
                         printPackage(outputBuf);
                     }
@@ -541,6 +648,21 @@ int main(void)
                     printf("\n\nREACHED CLOSED!!!");
                     currentState = CLOSED;
                 }
+
+
+
+                Node *ptr = freeFromJail(&jailList);
+                if(ptr != NULL)
+                {
+                    if (sendto(sock, &ptr->data, sizeof(Package), 0, (struct sockaddr *) &serverAddr, slen) == -1) {
+                        perror("sendto()");
+                        exit(1);
+                        // die("sendto()"); // fails
+                    }
+                    free(ptr);
+                    ptr = NULL;
+                }
+
 
                 break;
             }
