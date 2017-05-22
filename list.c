@@ -1,4 +1,5 @@
 #include "list.h"
+#include "Generic.h"
 
 
 /* Skriv era funktionsimplementationer för interfacet till er länkade lista här 
@@ -169,19 +170,85 @@ void printList(List *mylist)
     }
 }
 
-bool jail(List jailList, Package pack)
-{
-    //gen an error with some probability
-    //Chose with error randomly
 
-    //If error return true
-    //else retrun false
-    return false;
+
+void jail(List *jailList, Package pack, int sock, struct sockaddr_in serverAddr, bool genError)
+{
+    uint8_t trigger = rand() % 100;
+    if(genError == false)
+    {
+        trigger = 0;
+    }
+    if(trigger > ERRORPROBABILITY)
+    {
+        uint8_t errorType = rand() % 2;
+
+        //destroy checksum
+        if (errorType == 0)
+        {
+            addNodeLast(jailList, pack);
+            pack.checkSum = pack.checkSum + 1;
+            if (sendto(sock, &pack, sizeof(Package), 0, (struct sockaddr*) &serverAddr, sizeof(serverAddr)) == -1)
+            {
+                die("sendto()");
+            }
+        }
+        else if (errorType == 1)
+        {
+            //Jail package
+            addNodeLast(jailList, pack);
+        }
+        else
+        {
+            printf("ShitFuck! errorType too big");
+        }
+    }
+    else
+    {
+        if (sendto(sock, &pack, sizeof(Package), 0, (struct sockaddr*) &serverAddr, sizeof(serverAddr)) == -1)
+        {
+            die("sendto()");
+        }
+    }
 }
 
-Package releseFromJail(List* jailList)
+/*
+Node *ptr = freeFromJail(list);
+if(ptr != NULL)
 {
-    Package temp;
-    //release a random package and remove it from this list
-    return temp;
+//send
+free(ptr);
 }
+*/
+Node* freeFromJail(List*list)
+{
+    Node *curr = list->head;
+    Node *prev = curr;
+    int numNodes = numberOfNodes(list);
+
+    int count = 0;
+    //somerandom numbbetween0andlength - 1
+
+    if(numNodes == 0)
+    {
+        return NULL;
+    }
+    int targetNode = rand() % numberOfNodes(list); // must be at least 2 elements in list
+    if(targetNode == 0)
+    {
+        list->head = curr->Next;
+        return curr;
+    }
+
+    while (count < targetNode)  // vi har 2 nodes, targetnode = 1,
+    {
+        prev = curr;
+        curr = curr->Next;
+        count++;
+    }
+
+    prev->Next = curr->Next;
+    return curr;
+}
+
+

@@ -156,5 +156,3 @@ bool checksumChecker(Package pack)
         return false;
     }
 }
-
-
