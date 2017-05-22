@@ -27,6 +27,8 @@ int main(void)
     uint64_t incMaxAck = 0;
     bool genError = true;
 
+    uint16_t  trigger = 0;
+
     List list, jailList;
     jailList.head = NULL;
     list.head = NULL;
@@ -85,18 +87,25 @@ int main(void)
 
                 currentState = WAITINITCONNECT;
 
+                trigger = rand() %100;
 
-                Node *ptr = freeFromJail(&jailList);
-                if(ptr != NULL)
+
+                if(trigger > RELEASEPROBABILITY)// jail release probablity
                 {
-                    if (sendto(sock, &ptr->data, sizeof(Package), 0, (struct sockaddr *) &serverAddr, slen) == -1) {
-                        perror("sendto()");
-                        exit(1);
-                        // die("sendto()"); // fails
+                    Node *ptr = freeFromJail(&jailList);
+                    if(ptr != NULL)
+                    {
+                        if (sendto(sock, &ptr->data, sizeof(Package), 0, (struct sockaddr *) &serverAddr, slen) == -1) {
+                            perror("sendto()");
+                            exit(1);
+                            // die("sendto()"); // fails
+                        }
+                        free(ptr);
+                        ptr = NULL;
                     }
-                    free(ptr);
-                    ptr = NULL;
                 }
+
+
 
 
                 break;
@@ -139,7 +148,7 @@ int main(void)
                         incMaxAck = inputBuf.ack + 1;
                         outputBuf.seq = incMaxAck;
                         outputBuf.ack = inputBuf.seq;
-                        checksum(outputBuf);
+                        outputBuf.checkSum = checksum(outputBuf);
 
                         jail(&jailList, outputBuf, sock, serverAddr, genError);
                         /*
@@ -200,18 +209,23 @@ int main(void)
 
 
 
-                Node *ptr = freeFromJail(&jailList);
-                if(ptr != NULL)
-                {
-                    if (sendto(sock, &ptr->data, sizeof(Package), 0, (struct sockaddr *) &serverAddr, slen) == -1) {
-                        perror("sendto()");
-                        exit(1);
-                        // die("sendto()"); // fails
-                    }
-                    free(ptr);
-                    ptr = NULL;
-                }
+                trigger = rand() %100;
 
+
+                if(trigger > RELEASEPROBABILITY)// jail release probablity
+                {
+                    Node *ptr = freeFromJail(&jailList);
+                    if(ptr != NULL)
+                    {
+                        if (sendto(sock, &ptr->data, sizeof(Package), 0, (struct sockaddr *) &serverAddr, slen) == -1) {
+                            perror("sendto()");
+                            exit(1);
+                            // die("sendto()"); // fails
+                        }
+                        free(ptr);
+                        ptr = NULL;
+                    }
+                }
 
                 break;
             }
@@ -288,18 +302,23 @@ int main(void)
 
 
 
-                Node *ptr = freeFromJail(&jailList);
-                if(ptr != NULL)
-                {
-                    if (sendto(sock, &ptr->data, sizeof(Package), 0, (struct sockaddr *) &serverAddr, slen) == -1) {
-                        perror("sendto()");
-                        exit(1);
-                        // die("sendto()"); // fails
-                    }
-                    free(ptr);
-                    ptr = NULL;
-                }
+                trigger = rand() %100;
 
+
+                if(trigger > RELEASEPROBABILITY)// jail release probablity
+                {
+                    Node *ptr = freeFromJail(&jailList);
+                    if(ptr != NULL)
+                    {
+                        if (sendto(sock, &ptr->data, sizeof(Package), 0, (struct sockaddr *) &serverAddr, slen) == -1) {
+                            perror("sendto()");
+                            exit(1);
+                            // die("sendto()"); // fails
+                        }
+                        free(ptr);
+                        ptr = NULL;
+                    }
+                }
 
                 break;
             }
@@ -488,16 +507,22 @@ int main(void)
 
 
 
-                Node *ptr = freeFromJail(&jailList);
-                if(ptr != NULL)
+                trigger = rand() %100;
+
+
+                if(trigger > RELEASEPROBABILITY)// jail release probablity
                 {
-                    if (sendto(sock, &ptr->data, sizeof(Package), 0, (struct sockaddr *) &serverAddr, slen) == -1) {
-                        perror("sendto()");
-                        exit(1);
-                        // die("sendto()"); // fails
+                    Node *ptr = freeFromJail(&jailList);
+                    if(ptr != NULL)
+                    {
+                        if (sendto(sock, &ptr->data, sizeof(Package), 0, (struct sockaddr *) &serverAddr, slen) == -1) {
+                            perror("sendto()");
+                            exit(1);
+                            // die("sendto()"); // fails
+                        }
+                        free(ptr);
+                        ptr = NULL;
                     }
-                    free(ptr);
-                    ptr = NULL;
                 }
 
 
@@ -651,16 +676,22 @@ int main(void)
 
 
 
-                Node *ptr = freeFromJail(&jailList);
-                if(ptr != NULL)
+                trigger = rand() %100;
+
+
+                if(trigger > RELEASEPROBABILITY)// jail release probablity
                 {
-                    if (sendto(sock, &ptr->data, sizeof(Package), 0, (struct sockaddr *) &serverAddr, slen) == -1) {
-                        perror("sendto()");
-                        exit(1);
-                        // die("sendto()"); // fails
+                    Node *ptr = freeFromJail(&jailList);
+                    if(ptr != NULL)
+                    {
+                        if (sendto(sock, &ptr->data, sizeof(Package), 0, (struct sockaddr *) &serverAddr, slen) == -1) {
+                            perror("sendto()");
+                            exit(1);
+                            // die("sendto()"); // fails
+                        }
+                        free(ptr);
+                        ptr = NULL;
                     }
-                    free(ptr);
-                    ptr = NULL;
                 }
 
 
