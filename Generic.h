@@ -25,6 +25,7 @@
 #define WAITINGCLOSE 5
 #define CLOSED 6
 
+
 typedef struct {
 
     bool fin;
