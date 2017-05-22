@@ -187,6 +187,7 @@ void jail(List *jailList, Package pack, int sock, struct sockaddr_in serverAddr,
         //destroy checksum
         if (errorType == 0)
         {
+            printf("\n!!Destroying checksum!!\n");
             addNodeLast(jailList, pack);
             pack.checkSum = pack.checkSum + 1;
             if (sendto(sock, &pack, sizeof(Package), 0, (struct sockaddr*) &serverAddr, sizeof(serverAddr)) == -1)
@@ -196,7 +197,8 @@ void jail(List *jailList, Package pack, int sock, struct sockaddr_in serverAddr,
         }
         else if (errorType == 1)
         {
-            //Jail package
+            printf("\n!!GOES TO JAIL!!");
+            printPackage(pack);
             addNodeLast(jailList, pack);
         }
         else
@@ -210,6 +212,8 @@ void jail(List *jailList, Package pack, int sock, struct sockaddr_in serverAddr,
         {
             die("sendto()");
         }
+        printf("\n-=Output package=-");
+        printPackage(pack);
     }
 }
 
